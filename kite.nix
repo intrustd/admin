@@ -1,11 +1,11 @@
-{ pkgs, kite-lib, ... }:
+{ pkgs, kite-lib, pure-build, ... }:
 let python = pkgs.python3;
 
     admin-app = python.pkgs.buildPythonPackage rec {
       pname = "kite-admin";
       version = "0.1.0";
 
-      src = ./dist/kite-admin-0.1.0.tar.gz;
+      src = if pure-build then ./. else ./dist/kite-admin-0.1.0.tar.gz;
 
       doCheck = false;
 
