@@ -1,0 +1,47 @@
+{
+  "name": "kite-admin-app",
+  "version": "1.0.0",
+  "description": "Kite admin app",
+  "main": "src/Admin.js",
+  "scripts": {
+    "build": "webpack --progress -p --config webpack.prod.js",
+    "watch": "webpack --progress --watch --config webpack.dev.js",
+    "local-watch": "webpack --progress  --watch --config webpack.local.js",
+    "local-build": "webpack --progress -p --config webpack.local.js"
+  },
+  "author": "An author",
+  "license": "MIT",
+  "dependencies": {
+    "font-awesome": "^4.7.0",
+    "immutable": "^3.8.2",
+    "query-string": "^6.2.0",
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
+    "react-router": "^4.3.1",
+    "react-router-dom": "^4.3.1",
+    "react-transition-group": "^2.5.0",
+    "stork-js": "file:../../../stork-js",
+    "uikit": "^3.0.0-rc.11"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-react": "^6.24.1",
+    "css-loader": "^1.0.0",
+    "extract-text-webpack-plugin": "^3.0.2",
+    "file-loader": "^2.0.0",
+    "handlebars": "^4.0.11",
+    "handlebars-loader": "^1.7.0",
+    "html-webpack-plugin": "^3.2.0",
+    "less": "^3.8.1",
+    "less-loader": "^4.1.0",
+    "less-plugin-rewrite-import": "^0.1.1",
+    "mini-css-extract-plugin": "^0.4.2",
+    "node-sass": "^4.9.3",
+    "sass-loader": "^7.1.0",
+    "webpack": "^4.15.1",
+    "webpack-cli": "^3.0.8",
+    "webpack-merge": "^4.1.4"
+  }
+}

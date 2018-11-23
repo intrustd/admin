@@ -1,0 +1,14 @@
+\#*
+.#*
+__pycache__
+*~
+result.json
+result.json.sign
+*.egg-info
+build
+dist
+*.pyc
+dist-local
+node_modules
+*.tar.gz
+package-lock.json
