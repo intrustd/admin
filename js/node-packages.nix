@@ -5512,11 +5512,15 @@ let
         sha512 = "j4emi03KXqJWcIeF8eIXkjMFN1Cmb8gUlDYGeBALLPo5qdyTfA9bOtl8m33lRoC+vFMkP3gl0WsDr6+gzxbbTA==";
       };
     };
-    "stork-js-../../../stork-js" = {
+    "stork-js-git://github.com/kitecomputing/kite-js" = {
       name = "stork-js";
       packageName = "stork-js";
       version = "1.0.0";
-      src = ../../../stork-js;
+      src = fetchgit {
+        url = "git://github.com/kitecomputing/kite-js";
+        rev = "e6389269c51bc08e9d95924256f5614ac937c4fb";
+        sha256 = "2935297f231df76435915199c943d2d12227f83fb288a0d0524f42c687da9def";
+      };
     };
     "stream-browserify-2.0.1" = {
       name = "stream-browserify";
@@ -7172,7 +7176,7 @@ let
           sources."string_decoder-1.1.1"
         ];
       })
-      sources."stork-js-../../../stork-js"
+      sources."stork-js-git://github.com/kitecomputing/kite-js"
       (sources."stream-browserify-2.0.1" // {
         dependencies = [
           sources."isarray-1.0.0"
