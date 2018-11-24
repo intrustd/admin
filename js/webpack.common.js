@@ -6,7 +6,7 @@ const path = require('path')
 const ROOT_DIR = path.resolve(__dirname)
 const SRC_DIR = path.resolve(__dirname, 'app')
 const BUILD_DIR = path.resolve(__dirname, 'build')
-const NODE_MODULES_DIR = path.resolve(__dirname, 'node_modules')
+const NODE_MODULES_DIR = process.env.NODE_PATH || path.resolve(__dirname, 'node_modules')
 
 module.exports = {
     entry: {
