@@ -2,7 +2,7 @@ import { render } from 'react-dom';
 import { createElement } from 'react';
 import { installKite } from 'stork-js'
 
-window.installKite({ rewrite: { 'kite+app://admin.flywithkite.com': '/admin[path]' } })
+window.installKite({ rewrite: { 'admin.flywithkite.com': '/admin[path]' } })
 
 var { AdminApp } = require('./Admin.js')
 
