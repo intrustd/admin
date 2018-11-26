@@ -80,7 +80,7 @@ class UserTile extends React.Component {
                  E('div', { className: 'user-tile-attrs'},
                    this.props.superuser ? [ E('i', { className: 'fa fa-fw fa-lock' }) ] : null,
                    E('i', { className: 'fa fa-fw fa-pencil' }),
-                   E('i', { className: 'fa fa-fw fa-info-circle' }));
+                   E('i', { className: 'fa fa-fw fa-info-circle' })));
     }
 }
 
