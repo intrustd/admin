@@ -76,7 +76,11 @@ class Apps extends React.Component {
 class UserTile extends React.Component {
     render() {
         return E('div', {className: 'user-tile'},
-                 this.props.user.display_name);
+                 this.props.user.display_name,
+                 E('div', { className: 'user-tile-attrs'},
+                   this.props.superuser ? [ E('i', { className: 'fa fa-fw fa-lock' }) ] : null,
+                   E('i', { className: 'fa fa-fw fa-pencil' }),
+                   E('i', { className: 'fa fa-fw fa-info-circle' }));
     }
 }
 
