@@ -1,15 +1,19 @@
-from socket import socket, AF_UNIX, SOCK_SEQPACKET
+from socket import socket, AF_UNIX, SOCK_SEQPACKET, SOL_SOCKET, SCM_RIGHTS
 from contextlib import contextmanager
 from OpenSSL import crypto
 from flask import request, session
+import fcntl
+import array
 import struct
 import os
 import ipaddress
 import binascii
 import json
 import datetime
+import select
 
-from .errors import KiteNotLoggedInError
+from .app import app
+from .errors import KiteNotLoggedInError, KiteAppFetchError
 
 AttrFactory = {}
 
@@ -124,10 +128,26 @@ class KiteLocalAttrPersonaDisplayName(KiteLocalAttr):
     def _from_buffer(attrTy, data):
         return KiteLocalAttrPersonaDisplayName(data.decode('ascii'))
 
+class KiteLocalAttrStdout(KiteLocalAttr):
+    attr_ty = 0x0018
+
+    def __init__(self, ix):
+        super(KiteLocalAttrStdout, self).__init__()
+        self.ix = ix
+
+    def _pack(self):
+        return struct.pack("!i", self.ix)
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        (ix,) = struct.unpack("!i", data)
+        return KiteLocalAttrStdout(ix)
+
 class KiteLocalAttrPersonaPassword(KiteLocalAttr):
     attr_ty = 0x000E
 
     def __init__(self, pw):
+        super(KiteLocalAttrPersonaPassword, self).__init__()
         self.password = pw
 
     def _pack(self):
@@ -265,6 +285,34 @@ class KiteLocalAttrSigned(KiteLocalAttr):
     def _from_buffer(attrTy, data):
         return KiteLocalAttrSigned()
 
+class KiteLocalAttrManifestUrl(KiteLocalAttr):
+    attr_ty = 0x0003
+
+    def __init__(self, mf_url):
+        super(KiteLocalAttrManifestUrl, self).__init__()
+        self.manifest_url = mf_url
+
+    def _pack(self):
+        return self.manifest_url.encode('ascii')
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return KiteLocalAttrManifestUrl(data.decode('ascii'))
+
+class KiteLocalAttrSignatureUrl(KiteLocalAttr):
+    attr_ty = 0x001F
+
+    def __init__(self, mf_url):
+        super(KiteLocalAttrSignatureUrl, self).__init__()
+        self.signature_url = mf_url
+
+    def _pack(self):
+        return self.signature_url.encode('ascii')
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return KiteLocalAttrSignatureUrl(data.decode('ascii'))
+
 class KiteLocalAttrManifest(KiteLocalAttr):
     attr_ty = 0x0014
 
@@ -279,10 +327,27 @@ class KiteLocalAttrManifest(KiteLocalAttr):
     def _from_buffer(attrTy, data):
         return KiteLocalAttrManifest(data.decode('ascii'))
 
+class KiteLocalAttrSystemType(KiteLocalAttr):
+    attr_ty = 0x001E
+
+    def __init__(self, ty):
+        super(KiteLocalAttrSystemType, self).__init__()
+        self.system_type = ty
+
+    def _pack(self):
+        return self.system_type.encode('ascii')
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return KiteLocalAttrSystemType(data.decode('ascii'))
+
 class UnknownAttr(object):
     def __init__(self, ty, data):
         self.ty = ty
         self.data = data
+
+    def __repr__(self):
+        return "<UnknownAttr({})>".format(hex(self.ty))
 
     @staticmethod
     def _from_buffer(ty, data):
@@ -295,14 +360,14 @@ def find_attr(attrs, ty):
     return None
 
 class AppManifest(object):
-    __slots__ = ( 'name', 'domain', 'nix_closure',
+    __slots__ = ( 'name', 'domain', 'nix_closures',
                   'run_as_admin', 'singleton', 'app_url',
                   'icon', )
     def __init__(self, json_data):
         self.name = json_data['name']
         self.domain = json_data['domain']
-        self.nix_closure = json_data['nix-closure']
-        self.run_as_admin = json_data.get('runAsAdmin', False)
+        self.nix_closures = json_data['nix-closure']
+        self.run_as_admin = json_data.get('run-as-admin', False)
         self.singleton = json_data.get('singleton', False)
         self.app_url = json_data.get('app-url')
         self.icon = json_data.get('icon')
@@ -313,10 +378,14 @@ class AppManifest(object):
                 'app-url': self.app_url,
                 'icon': self.icon } # TODO return meta information
         if not web_response:
-            ret['nix-closure'] = self.nix_closure
-            ret['runAsAdmin'] = self.run_as_admin
+            ret['nix-closure'] = self.nix_closures
+            ret['run-as-admin'] = self.run_as_admin
             ret['singleton'] = self.singleton
         return ret
+
+    @property
+    def nix_closure(self):
+        return self.nix_closures.get(app.config['KITE_SYSTEM_TYPE'])
 
 class KiteNoPermError(Exception):
     status_code = 401
@@ -389,6 +458,30 @@ class KiteLocalApi(object):
                 return AppManifest(json.load(mf))
         except FileNotFoundError:
             return None
+
+    def _get_system_info(self):
+        req = self._write_request(0x0500, 0, [])
+
+        self.socket.send(req)
+
+        (pktTy, attrs) = self._receive_packet()
+
+        response_attr = self._get_response_code(attrs)
+        if response_attr.not_found:
+            return None
+        elif not response_attr.success:
+            raise ValueError("error getting system information: {}".format(response_attr.code))
+        else:
+            return attrs
+
+    def get_system_type(self):
+        attrs = self._get_system_info()
+
+        host = find_attr(attrs, KiteLocalAttrSystemType)
+        if host is None:
+            raise ValueError("No system type attribute in response")
+
+        return host.system_type
 
     def create_user(self, displayname=None, password=None, superuser=False):
         req = self._write_request(0x0101, 0, [
@@ -480,6 +573,16 @@ class KiteLocalApi(object):
                      'manifest_name': manifest_name,
                      'manifest': manifest }
 
+    def get_application_status(self, appid):
+        state = self.get_application_info(appid)
+        if state is not None:
+            ret = state['manifest'].to_dict()
+            ret['is_signed'] = state['is_signed']
+            ret['state'] = 'installed'
+            return ret
+        else:
+            return None
+
     def get_container_info(self, address):
         req = self._write_request(0x0400, 0, [ KiteLocalAttrAddress(address) ])
         self.socket.send(req)
@@ -544,6 +647,14 @@ class KiteLocalApi(object):
     def close(self):
         self.socket.close()
 
+    def send_fds(self, req, fds=[]):
+        if len(fds) == 0:
+            self.socket.send(req)
+        else:
+            self.socket.sendmsg([req], [(SOL_SOCKET,
+                                         SCM_RIGHTS,
+                                         array.array('i', fds))])
+
     @property
     def tokens_dir(self):
         tokens_dir = os.path.join(self.appliance_dir, 'tokens')
@@ -577,6 +688,73 @@ class KiteLocalApi(object):
                     yield self._read_manifest(manifest_version)
                 else:
                     continue
+
+    INFER_SIGN = 'infer'
+    def register_application(self, manifest_path, progress=None, signature_path=None):
+        progress_attr = []
+        sign_attr = []
+        progress_fds = []
+
+        if progress is not None:
+            rfd, wfd = os.pipe()
+            progress_attr = [ KiteLocalAttrStdout(0) ]
+            progress_fds = [ wfd ]
+
+        if signature_path is not None and signature_path != self.INFER_SIGN:
+            sign_attr = [ KiteLocalAttrSignatureUrl(signature_path) ]
+        elif signature_path is None:
+            sign_attr = [ KiteLocalAttrSignatureUrl("") ]
+
+        req = self._write_request(0x0201, 0,
+                                  [ KiteLocalAttrManifestUrl(manifest_path) ] +
+                                  sign_attr +
+                                  progress_attr)
+
+        self.send_fds(req, fds=progress_fds)
+
+        error = None
+        buf = ''
+
+        flag = fcntl.fcntl(rfd, fcntl.F_GETFD)
+        fcntl.fcntl(rfd, fcntl.F_SETFD, flag | os.O_NONBLOCK)
+
+        if progress is not None:
+            # Read in the entirety of the output
+            try:
+                while True:
+                    (r, _, x) = select.select( [ rfd, self.socket ], [], [ rfd, self.socket ] )
+                    if len(x) > 0:
+                        raise ValueError("Error in one or more sockets")
+
+                    if self.socket in r:
+                        break
+
+                    if rfd in r:
+                        next_chunk = os.read(rfd, 1000).decode('ascii')
+                        if len(next_chunk) == 0:
+                            break
+                        buf += next_chunk
+                        while '\n' in buf:
+                            (line, _, buf) = buf.partition('\n')
+                            if line.startswith('error'):
+                                (_, _, msg) = line.partition(' ')
+                                error = msg
+                                break
+                            else:
+                                (complete, _, rest) = line.partition(' ')
+                                (total, _, msg) = rest.partition(' ')
+                                progress(msg, int(complete), int(total))
+            finally:
+                os.close(rfd)
+
+        (pktTy, attrs) = self._receive_packet()
+
+        if error is not None:
+            raise KiteAppFetchError(error)
+
+        response_attr = self._get_response_code(attrs)
+        if not response_attr.success:
+            raise ValueError("error getting app info: {}".format(response_attr.code))
 
     def open_token(self, name):
         try:
@@ -612,8 +790,6 @@ def get_container_info(api):
                 del session['persona_id']
                 del session['expiration']
                 raise KiteNotLoggedInError()
-
-            print("Got container info", session['persona_id'])
 
             return { 'source': 'local-network',
                      'persona_id': session['persona_id'] }

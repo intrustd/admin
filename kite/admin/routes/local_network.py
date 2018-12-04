@@ -13,8 +13,6 @@ def login():
         # password fields and attempt a login, only if the user is a
         # superuser.
 
-        print("Form is ", request.form)
-
         if 'persona_id' in request.form and \
            'password' in request.form:
             with local_api() as api:

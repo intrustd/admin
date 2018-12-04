@@ -7,7 +7,7 @@ setup(
     version="0.1.0",
     description="Kite Admin App",
     packages=find_packages(),
-    install_requires=["Flask>=0.2"],
+    install_requires=["Flask>=0.2", "celery", "redis"],
     entry_points={
         'console_scripts': [ 'kite-admin=kite.admin:main' ]
     }

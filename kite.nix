@@ -9,7 +9,7 @@ let python = pkgs.python3;
 
       doCheck = false;
 
-      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev ];
+      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis ];
 
       meta = {
         homepage = "https://flywithkite.com";
@@ -40,8 +40,25 @@ in
       environment = { KITE_APPLIANCE_DIR = "/kite/appliance"; };
     };
 
+  kite.services.redis =
+    kite-lib.templates.redis {
+      name = "redis";
+
+      savePoints = [];
+      databases = 2;
+    };
+
+  kite.services.celery =
+   let celery = python.withPackages (ps: [ admin-app ]);
+   in { name = "celery";
+        environment = { KITE_APPLIANCE_DIR = "/kite/appliance"; };
+        startExec = ''
+          ${celery}/bin/celery -A kite.admin.app.celery -A kite.admin.app.celery worker --loglevel=INFO --concurrency=2
+        '';
+        autostart = true; };
+
   kite.runAsAdmin = true;
   kite.singleton = true;
 
-  kite.bindMounts = [ "/run/udev" ];
+  kite.bindMounts = [ "/run/udev" "/etc/resolv.conf" ];
 }
