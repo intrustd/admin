@@ -60,5 +60,5 @@ in
   kite.runAsAdmin = true;
   kite.singleton = true;
 
-  kite.bindMounts = [ "/run/udev" "/etc/resolv.conf" ];
+  kite.bindMounts = [ "/run/udev" ];
 }
