@@ -110,3 +110,10 @@ class KiteNotLoggedInError(Exception):
 @app.errorhandler(KiteNotLoggedInError)
 def not_logged_in_error(error):
     return 'Not Logged In', 403
+
+class KiteAppInstallationError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return 'App install error: {}'.format(self.msg)

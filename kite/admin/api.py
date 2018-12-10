@@ -13,7 +13,7 @@ import datetime
 import select
 
 from .app import app
-from .errors import KiteNotLoggedInError, KiteAppFetchError
+from .errors import KiteNotLoggedInError, KiteAppFetchError, KiteAppInstallationError
 
 AttrFactory = {}
 
@@ -743,6 +743,8 @@ class KiteLocalApi(object):
                             else:
                                 (complete, _, rest) = line.partition(' ')
                                 (total, _, msg) = rest.partition(' ')
+                                if complete == 'error':
+                                    raise KiteAppInstallationError(rest)
                                 progress(msg, int(complete), int(total))
             finally:
                 os.close(rfd)

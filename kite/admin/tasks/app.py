@@ -8,7 +8,7 @@ import json
 
 from ..api import AppManifest, local_api
 from ..app import celery
-from ..errors import KiteAppFetchError
+from ..errors import KiteAppFetchError, KiteAppInstallationError
 
 logger = get_task_logger(__name__)
 
