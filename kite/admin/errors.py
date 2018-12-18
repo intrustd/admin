@@ -50,7 +50,7 @@ class KitePermissionDeniedError(Exception):
         self.perms = perms
 
     def to_dict(self):
-        return { 'denied': self.perms }
+        return { 'denied': [str(p) for p in self.perms] }
 
 @app.errorhandler(KitePermissionDeniedError)
 def perm_denied(error):
