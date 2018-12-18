@@ -76,17 +76,21 @@ def perm_error(error):
     response.status_code = 403
     return response
 
+class KiteAppFetchError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
 class KiteNoSuchAppError(Exception):
-    def __init__(self, app_name):
-        self.app_name = app_name
+    def __init__(self, app):
+        self.app = app
 
 class KiteNoSuchAppsError(Exception):
-    def __init__(self, app_names):
-        self.app_names = list(app_names)
+    def __init__(self, apps):
+        self.apps = list(apps)
 
 @app.errorhandler(KiteNoSuchAppsError)
 def no_such_app_error(error):
-    response = jsonify({ 'missing-apps': error.app_names })
+    response = jsonify({ 'missing-apps': error.apps })
     response.status_code = 400
     return response
 

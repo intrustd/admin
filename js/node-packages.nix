@@ -4968,7 +4968,7 @@ let
       packageName = "regjsparser";
       version = "0.1.5";
       src = fetchurl {
-        url = "https://registry.npmjs.org/regjsparser/-/regjsparser-0.1.5.tgz";
+        url = "http://registry.npmjs.org/regjsparser/-/regjsparser-0.1.5.tgz";
         sha1 = "7ee8f84dc6fa792d3fd0ae228d24bd949ead205c";
       };
     };
@@ -5518,8 +5518,8 @@ let
       version = "1.0.0";
       src = fetchgit {
         url = "git://github.com/kitecomputing/kite-js";
-        rev = "e6389269c51bc08e9d95924256f5614ac937c4fb";
-        sha256 = "2935297f231df76435915199c943d2d12227f83fb288a0d0524f42c687da9def";
+        rev = "f53fb38591a5e07e6aaa6f1206e5719b8385b7a4";
+        sha256 = "093a6f889a6f5f6c79ee4b0578b81126c9050860f211405854572e827d9b1ac9";
       };
     };
     "stream-browserify-2.0.1" = {
@@ -6116,13 +6116,13 @@ let
         sha1 = "3719245e909282d93967825f44bcd550e9c03995";
       };
     };
-    "webpack-4.26.0" = {
+    "webpack-4.26.1" = {
       name = "webpack";
       packageName = "webpack";
-      version = "4.26.0";
+      version = "4.26.1";
       src = fetchurl {
-        url = "https://registry.npmjs.org/webpack/-/webpack-4.26.0.tgz";
-        sha512 = "J/dP9SJIc5OtX2FZ/+U9ikQtd6H6Mcbqt0xeXtmPwYGDKf8nkbOQQA9KL2Y0rJOsN1Al9Pdn+/j63X58ub8gvQ==";
+        url = "https://registry.npmjs.org/webpack/-/webpack-4.26.1.tgz";
+        sha512 = "i2oOvEvuvLLSuSCkdVrknaxAhtUZ9g+nLSoHCWV0gDzqGX2DXaCrMmMUpbRsTSSLrUqAI56PoEiyMUZIZ1msug==";
       };
     };
     "webpack-cli-3.1.2" = {
@@ -7306,7 +7306,7 @@ let
       sources."warning-4.0.2"
       sources."watchpack-1.6.0"
       sources."web-streams-polyfill-1.3.2"
-      (sources."webpack-4.26.0" // {
+      (sources."webpack-4.26.1" // {
         dependencies = [
           sources."ajv-6.5.5"
           sources."fast-deep-equal-2.0.1"
@@ -7372,7 +7372,7 @@ let
       license = "MIT";
     };
     production = false;
-    bypassCache = false;
+    bypassCache = true;
   };
 in
 {

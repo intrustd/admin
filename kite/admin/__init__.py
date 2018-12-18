@@ -21,6 +21,11 @@ def me(user=None, api=None, container=None):
 def handle_no_perm(err):
     return 'Run without admin privileges', 401
 
+with local_api() as api:
+    system_type = api.get_system_type()
+    app.config['KITE_SYSTEM_TYPE'] = system_type
+    print("Got system type", system_type)
+
 print("Starting kite admin", list(app.url_map.iter_rules()))
 
 def main():

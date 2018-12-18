@@ -104,11 +104,7 @@ class Logins extends React.Component {
                            ({persona_id, persona}) =>
                                E('li', {key: persona_id, className: ((this.state.selectedPersona == persona_id) ? 'active' : null),
                                         onClick: () => { this.setState({selectedPersona: persona_id}) } },
-                                 E('div', { className: 'kite-display-name' }, persona.display_name),
-                                 E('div', { className: 'kite-persona-attrs'},
-                                   persona.superuser ? [ E('i', { className: 'fa fa-fw fa-lock' }) ] : null,
-                                   E('i', { className: 'fa fa-fw fa-pencil' }),
-                                   E('i', { className: 'fa fa-fw fa-info-circle' }))))),
+                                 E('div', { className: 'kite-display-name' }, persona.display_name)))),
                      passwordBox)
         } else if ( this.state.error ) {
             return E('div', { className: 'uk-alert-danger' },

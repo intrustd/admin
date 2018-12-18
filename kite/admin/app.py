@@ -1,4 +1,7 @@
 from flask import Flask, request
+from celery import Celery, Task
+from redis import BlockingConnectionPool as RedisConnectionPool, Redis
+from contextlib import contextmanager
 from urllib.parse import parse_qsl
 import os
 
@@ -18,7 +21,27 @@ class TranslateAddressMiddleware(object):
 
 app = Flask(__name__)
 
+# TODO use a random key
 app.secret_key = "KITEADMINDEBUGRANDOM BLAH"
 
 if 'KITE_ADMIN_DEBUG' in os.environ:
     app.wsgi_app = TranslateAddressMiddleware(app.wsgi_app)
+
+celery = Celery(app.import_name,
+                backend='redis://localhost:6379',
+                broker='redis://localhost:6379')
+
+class ContextTask(Task):
+    def __call__(self, *args, **kwargs):
+        with app.app_context():
+            return self.run(*args, **kwargs)
+
+celery.Task = ContextTask
+
+_redis = RedisConnectionPool(db=1)
+@contextmanager
+def redis_connection():
+    conn = Redis(connection_pool=_redis)
+    yield conn
+
+

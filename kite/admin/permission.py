@@ -12,6 +12,7 @@ from .errors import KitePermissionsError, KiteNoSuchAppError, \
     KiteNoSuchAppsError, KiteNoSuchPermissionError
 
 KITE_ADMIN_APP_URL='admin.flywithkite.com'
+KITE_INSTALL_APP_PERMISSION='install-apps'
 KITE_ADMIN_NUCLEAR_PERMISSION='nuclear'
 KITE_LOGIN_PERMISSION='login'
 KITE_SITE_PERMISSION='site'
@@ -47,20 +48,6 @@ class ApplicationUrl(object):
     def __init__(self, app_domain, app_name):
         self.domain = app_domain
         self.name = app_name
-
-def parse_app_url(url):
-    try:
-        res = urlparse(url)
-    except ValueError:
-        raise TypeError("%s is not a valid URL" % url)
-
-    if res.scheme != 'kite+app':
-        raise TypeError("Expected kite+app as application URL scheme")
-
-    if len(res.path) == 0 or res.path[0] != '/':
-        raise ValueError("Invalid path name in application URL")
-
-    return res.hostname
 
 class PermSecurity(object):
     '''Permissions can only be assigned to tokens that meet certain criteria.
@@ -143,7 +130,7 @@ class Permission(object):
 
             self.permission = '/'.join(components[1:])
         else:
-            self.app_name = parse_app_url(app_url)
+            self.app = app_url
             self.permission = url_or_perm
 
     def __str__(self):
@@ -154,8 +141,7 @@ class Permission(object):
 
     def __eq__(self, a):
         return isinstance(a, Permission) and \
-            self.app_name == a.app_name and \
-            self.app_domain == a.app_domain and \
+            self.app == a.app and \
             self.permission == a.permission
 
     @property
@@ -269,7 +255,7 @@ class TokenRequest(object):
             try:
                 securities.append(p.perm_security(api))
             except KiteNoSuchAppError as e:
-                missing_apps.add(e.app_name)
+                missing_apps.add(e.app)
 
         if len(missing_apps) > 0:
             raise KiteNoSuchAppsError(missing_apps)
@@ -434,3 +420,6 @@ class Token(object):
 
         return token
 
+
+def has_install_permission(user):
+    return True
