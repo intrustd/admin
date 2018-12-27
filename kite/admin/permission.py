@@ -6,6 +6,7 @@ import os
 import operator
 import json
 import re
+import sys
 
 from .util import Signature
 from .errors import KitePermissionsError, KiteNoSuchAppError, \
@@ -16,6 +17,10 @@ KITE_INSTALL_APP_PERMISSION='install-apps'
 KITE_ADMIN_NUCLEAR_PERMISSION='nuclear'
 KITE_LOGIN_PERMISSION='login'
 KITE_SITE_PERMISSION='site'
+
+KITE_TRANSFER_SUFFIX='/transfer'
+KITE_TRANSFER_ONCE_SUFFIX='/transfer_once'
+
 def get_builtin_perm(perm_name):
     if perm_name == KITE_ADMIN_NUCLEAR_PERMISSION:
         return { 'needs_site': True,
@@ -36,11 +41,10 @@ def get_builtin_perm(perm_name):
         return None
 
 def find_perm(perms, perm_name):
-    print("Find perm", perms, perm_name)
     for p in perms:
         if 'name' in p and p['name'] == perm_name:
             return p
-        elif 'regex' in p and r.fullmatch(p['regex'], perm_name):
+        elif 'regex' in p and re.fullmatch(p['regex'], perm_name):
             return p
     return None
 
@@ -61,13 +65,15 @@ class PermSecurity(object):
     __slots__ = ( 'needs_site',
                   'needs_persona',
                   'needs_login',
-                  'max_ttl', )
+                  'max_ttl',
+                  'dynamic', )
 
     def __init__(self,
                  needs_site = False,
                  needs_persona = False,
                  needs_login = False,
-                 max_ttl=None):
+                 max_ttl = None,
+                 dynamic = False):
         '''Initialize this permission security object.
 
         :param bool needs_site Whether or not this permission needs to be specific to a site
@@ -79,12 +85,13 @@ class PermSecurity(object):
         self.needs_persona = needs_persona
         self.needs_login = needs_login
         self.max_ttl = max_ttl
+        self.dynamic = dynamic
 
     def __str__(self):
         return repr(self)
 
     def __repr__(self):
-        return 'PermSecurity(needs_site={self.needs_site}, needs_persona={self.needs_persona}, needs_login={self.needs_login}, max_ttl={self.max_ttl})'.format(self=self)
+        return 'PermSecurity(needs_site={self.needs_site}, needs_persona={self.needs_persona}, needs_login={self.needs_login}, max_ttl={self.max_ttl}, dynamic={self.dynamic})'.format(self=self)
 
     def __or__(self, other):
         max_ttl = self.max_ttl
@@ -95,17 +102,19 @@ class PermSecurity(object):
         return PermSecurity(needs_site=self.needs_site or other.needs_site,
                             needs_persona=self.needs_persona or other.needs_persona,
                             needs_login=self.needs_login or other.needs_login,
-                            max_ttl=max_ttl)
+                            max_ttl=max_ttl,
+                            dynamic=self.dynamic or other.dynamic)
 
     @staticmethod
     def from_json(d):
         return PermSecurity(needs_site=d.get('needs_site'),
                             needs_persona=d.get('needs_persona'),
                             needs_login=d.get('needs_login'),
-                            max_ttl=d.get('max_ttl'))
+                            max_ttl=d.get('max_ttl'),
+                            dynamic=d.get('dynamic', False))
 
 class Permission(object):
-    def __init__(self, url_or_perm, app_url=None):
+    def __init__(self, url_or_perm, app_url=None, relative_to=None):
         if app_url is None:
             try:
                 res = urlparse(url_or_perm)
@@ -113,9 +122,12 @@ class Permission(object):
                 raise TypeError("%s is not a valid URL" % url)
 
             if res.scheme != 'kite+perm':
-                raise TypeError("Expected kite+perm as permissions URL scheme")
-
-            self.app = res.hostname
+                if relative_to is None:
+                    raise TypeError("Expected kite+perm as permissions URL scheme")
+                else:
+                    self.app = relative_to
+            else:
+                self.app = res.hostname
 
             if len(res.path) == 0 or res.path[0] != '/':
                 raise ValueError("Invalid path name in permission")
@@ -133,8 +145,11 @@ class Permission(object):
             self.app = app_url
             self.permission = url_or_perm
 
-    def __str__(self):
+    def __repr__(self):
         return 'Permission({})'.format(self.canonical)
+
+    def __str__(self):
+        return self.canonical
 
     def __hash__(self):
         return hash(self.canonical)
@@ -143,6 +158,31 @@ class Permission(object):
         return isinstance(a, Permission) and \
             self.app == a.app and \
             self.permission == a.permission
+
+    @property
+    def transferred(self):
+        if self.permission.endswith(KITE_TRANSFER_SUFFIX):
+            transferred = Permission(self.permission[:-len(KITE_TRANSFER_SUFFIX)], app_url=self.app)
+            return set([transferred, self])
+        elif self.permission.endswith(KITE_TRANSFER_ONCE_SUFFIX):
+            transferred = Permission(self.permission[:-len(KITE_TRANSFER_ONCE_SUFFIX)], app_url=self.app)
+            return set([transferred])
+        else:
+            return set()
+
+    @property
+    def base_permission(self):
+        if self.permission.endswith(KITE_TRANSFER_SUFFIX):
+            return Permission(self.permission[:-len(KITE_TRANSFER_SUFFIX)], app_url=self.app).base_permission
+        elif self.permission.endswith(KITE_TRANSFER_ONCE_SUFFIX):
+            return Permission(self.permission[:-len(KITE_TRANSFER_ONCE_SUFFIX)], app_url=self.app).base_permission
+        else:
+            return self
+
+    @property
+    def is_base(self):
+        return not self.permission.endswith(KITE_TRANSFER_SUFFIX) and \
+            not self.permission.endswith(KITE_TRANSFER_ONCE_SUFFIX)
 
     @property
     def canonical(self):
@@ -161,20 +201,23 @@ class Permission(object):
         else:
             return False
 
-    def perm_security(self, api=None):
+    def perm_security(self, api=None, persona_id=None):
         if hasattr(self, '_perm_security'):
             return self._perm_security
         else:
-            self._perm_security = self.lookup_perm_security(api)
+            self._perm_security = self.lookup_perm_security(api, persona_id)
             return self._perm_security
 
-    def lookup_perm_security(self, api=None):
+    def lookup_perm_security(self, api=None, persona_id=None):
         '''Permission information is stored at <closure-path>/kite/perms.json
 
         Example:
         [ { name: "name", needs_site: true/false, needs_persona: true/false },
-          { regex: "regex", dynamic: "command format" } ]
+          { regex: "regex", dynamic: true/false } ]
         '''
+
+        if not self.is_base:
+            return self.base_permission.lookup_perm_security(api=api, persona_id=persona_id)
 
         # Find the application closure directory
         app_info = api.get_application_info(self.application)
@@ -186,10 +229,8 @@ class Permission(object):
 
         # Open the permissions file
         try:
-            print("Going to open", os.path.join(closure, 'permissions.json'))
             with open(os.path.join(closure, "permissions.json")) as perms:
                 perms_info = json.load(perms)
-                print ("Got info", perms_info)
                 perm = find_perm(perms_info, self.permission)
         except FileNotFoundError:
             perm = None
@@ -200,15 +241,20 @@ class Permission(object):
         if perm is None:
             raise KiteNoSuchPermissionError(self.canonical)
 
-        if 'dynamic' in perm:
-            cmd = perm['dynamic'].format({ 'persona': persona,
-                                           'permission': self.permission,
-                                           'application': self.application })
-            sts = api.run_in_app(self.application, cmd, persona=persona, wait=True, pipe=True)
-            if sts == 0:
-                return l
+        if perm.get('dynamic', False):
+            cmd = "/app/perms --lookup /{permission} {persona_flag} --application {application}".format(
+                persona_flag = ("--persona {}".format(persona_id) if persona_id is not None else ""),
+                permission=self.permission, application=self.application)
+
+            proc = api.run_in_app(self.application, cmd, persona=persona_id, wait=True,
+                                  stdout=api.PIPE, stdin=None, stderr=sys.stdout)
+
+            stdout, stderr = proc.communicate()
+
+            if proc.returncode == 0:
+                return PermSecurity.from_json(json.loads(stdout))
             else:
-                pass
+                raise KiteNoSuchPermissionError(self.permission)
         else:
             return PermSecurity.from_json(perm)
 
@@ -253,7 +299,7 @@ class TokenRequest(object):
 
         for p in self.permissions:
             try:
-                securities.append(p.perm_security(api))
+                securities.append(p.perm_security(api, persona_id))
             except KiteNoSuchAppError as e:
                 missing_apps.add(e.app)
 
@@ -265,7 +311,6 @@ class TokenRequest(object):
 
         required_security = reduce(operator.or_, securities,
                                    PermSecurity())
-        print("Required security is", required_security)
 
         site_needed = None
         if required_security.needs_site and site_id is None and self.site is None:
@@ -323,6 +368,15 @@ class Token(object):
 
         self.permissions = set(self._make_permission(p) for p in permissions)
 
+    def grouped_permissions(self):
+        ret = {}
+        for p in self.permissions:
+            if p.app in ret:
+                ret[p.app].append(p)
+            else:
+                ret[p.app] = [p]
+        return ret
+
     @staticmethod
     def _make_permission(p):
         if isinstance(p, Permission):
@@ -335,32 +389,105 @@ class Token(object):
     def check_permission(self, p):
         return self._make_permission(p) in self.permissions
 
-    def _verify_permission(self, p, is_transfer=False):
+    def _verify_dynamic_permissions(self, api, app, persona_id, cur_set, needed):
+        persona_flag = ""
+
+        if persona_id is not None:
+            persona_flag = "--persona {}".format(persona_id)
+
+        needed_arg = " ".join(("/" + x.permission) for x in needed)
+
+        cmd = "/app/perms --check {persona_flag} --application {app} {needed_arg}".format(**locals())
+
+        proc = api.run_in_app(app, cmd, persona=persona_id, wait=True,
+                              stdout=api.PIPE, stdin=api.PIPE, stderr=sys.stdout)
+
+        stdout, _ = proc.communicate("\n".join(str(p) for p in cur_set))
+
+        if proc.returncode == 0:
+            result = json.loads(stdout)
+
+            accepted = set()
+            denied = set()
+
+            for a in result.get('accepted', []):
+                p = Permission(a, relative_to=app)
+                if p in needed:
+                    accepted.add(p)
+                else:
+                    print("Got permission that was not requested: {} (permission={}, app={})".format(a, p.permission, p.app))
+
+            for a in result.get('denied', []):
+                p = Permission(a, relative_to=app)
+                if p in needed:
+                    denied.add(p)
+                else:
+                    print("Got permission that was not requested: {} (permission={}, app={})".format(a, p.permission, p.app))
+
+            needed_set = needed
+            missing_set = needed_set - accepted - denied
+
+            denied |= missing_set
+
+            return VerificationResult(accepted=accepted, denied=denied)
+        else:
+            return VerificationResult(accepted=set(), denied=set(needed))
+
+    def _verify_transfer(self, transferrable_perms, app, perms, api, persona_id=None):
         '''Verify that we have the rights to transfer permissions
 
         We have the right to transfer permissions if we have the
-        nuclear permission, or we have the perm/transfer_once or
-        perm/transfer permissions
+        perm/transfer_once or perm/transfer permissions. However,
+        these permissions may be implied by the presence of others.
+
+        In order to determine this, we take all the permissions we
+        have that are transferrable and collect them. Then, we look up
+        the information for this permission in the app's
+        permission.json. If the permission is marked as dynamic, then
+        we ask the application whether or not the current set of
+        transferrable permissions allows us to transfer this
+        one. Otherwise, we assume the permission is transferrable.
 
         '''
-        print("_verify_permission: ", p)
-        assert False
+        denied = set()
+        accepted = set()
+
+        for p in perms:
+            if self._make_permission(p) in transferrable_perms:
+                accepted.add(p)
+            else:
+                denied.add(p)
+
+        # If any denied perm is dynamic, ask if this transfer is possible
+        denied_perms_security = reduce(operator.or_, (p.perm_security(api, persona_id) for p in denied), PermSecurity())
+        if denied_perms_security.dynamic:
+            res = self._verify_dynamic_permissions(api, app, persona_id, transferrable_perms, denied)
+            accepted |= res.accepted
+            denied = res.denied
+
+        return VerificationResult(accepted=accepted,
+                                  denied=denied)
 
     def verify_permissions(self, api, container_info, is_transfer=False):
         accepted = []
         denied = []
 
+        persona_id = container_info.get('persona_id')
+
         tokens = TokenSet(api, container_info.get('tokens', []))
+        # Collect all transferrable permissions from tokens
+        transferrable = reduce(operator.or_, (self._make_permission(p).transferred for p in tokens.all_permissions), set())
+
+        print("Transferrable is ", transferrable)
 
         if container_info.get('logged_in', False) or \
            tokens.check_permission(Permission(KITE_ADMIN_NUCLEAR_PERMISSION, app_url=KITE_ADMIN_APP_URL)):
             accepted = list(self.permissions)
         else:
-            for p in self.permissions:
-                if self._verify_permission(p, api, is_transfer=is_transfer):
-                    accepted.append(p)
-                else:
-                    denied.append(p)
+            for app, perms in self.grouped_permissions().items():
+                res = self._verify_transfer(transferrable, app, perms, api, persona_id=persona_id)
+                accepted.extend(res.accepted)
+                denied.extend(res.denied)
 
         return VerificationResult(accepted=accepted, denied=denied)
 
@@ -381,7 +508,6 @@ class Token(object):
 
     @staticmethod
     def from_dict(d):
-        print("from dict", d)
         kwargs = {}
         kwargs['permissions'] = [Permission(p) for p in d.get('permissions', [])]
         if 'persona' in d:

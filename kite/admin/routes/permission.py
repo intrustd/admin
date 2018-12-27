@@ -1,5 +1,6 @@
 from flask import request, jsonify, abort
 from collections.abc import Iterable
+from ipaddress import ip_address, IPv4Address
 
 from ..api import local_api
 from ..app import app
@@ -35,7 +36,7 @@ def _validate_tokens(tokens):
     if 'ttl' in tokens:
         try:
             ttl_seconds = int(tokens['ttl'])
-        except ValueError:
+        except (ValueError, TypeError):
             raise KiteWrongType(path=".ttl", expected=KiteWrongType.Number)
 
     if 'permissions' not in tokens:
@@ -87,17 +88,25 @@ def tokens():
             token_string = token.save(api)
 
             return jsonify({ 'token': token_string,
-                             'expiration': token.expires.isoformat() })
+                             'expiration': token.expires.isoformat() if token.expires is not None else None })
         else:
             raise KitePermissionDeniedError(result.denied)
 
-@app.route('/me/permissions')
-def permissions():
+@app.route('/<addr>/permissions')
+def permissions(addr):
+    if addr == 'me':
+        addr = request.remote_addr
+
+    try:
+        if not isinstance(ip_address(addr), IPv4Address):
+            abort(404)
+    except ValueError:
+        abort(404)
+
     with local_api() as api:
-        info = api.get_container_info(request.remote_addr)
+        info = api.get_container_info(addr)
         if info is None:
             abort(404)
 
         tokens = TokenSet(api, info.get('tokens',[]))
-        print("Got tokens",info.get('tokens', []))
         return jsonify([p.canonical for p in tokens.all_permissions])

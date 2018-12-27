@@ -50,7 +50,7 @@ class KitePermissionDeniedError(Exception):
         self.perms = perms
 
     def to_dict(self):
-        return { 'denied': self.perms }
+        return { 'denied': [str(p) for p in self.perms] }
 
 @app.errorhandler(KitePermissionDeniedError)
 def perm_denied(error):
@@ -110,3 +110,10 @@ class KiteNotLoggedInError(Exception):
 @app.errorhandler(KiteNotLoggedInError)
 def not_logged_in_error(error):
     return 'Not Logged In', 403
+
+class KiteAppInstallationError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return 'App install error: {}'.format(self.msg)

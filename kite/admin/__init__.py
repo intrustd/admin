@@ -28,5 +28,5 @@ with local_api() as api:
 
 print("Starting kite admin", list(app.url_map.iter_rules()))
 
-def main():
-    app.run(host='0.0.0.0', port=50051)
+def main(port=80):
+    app.run(host='0.0.0.0', port=port)

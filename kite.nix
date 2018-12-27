@@ -35,7 +35,7 @@ in
       pythonPackages = [ admin-app ];
       module = "kite.admin:app";
       socket = "/kite/admin.sock";
-      http = "0.0.0.0:50051";
+      http = "0.0.0.0:80";
 
       environment = { KITE_APPLIANCE_DIR = "/kite/appliance"; };
     };
@@ -60,5 +60,5 @@ in
   kite.runAsAdmin = true;
   kite.singleton = true;
 
-  kite.bindMounts = [ "/run/udev" "/etc/resolv.conf" ];
+  kite.bindMounts = [ "/run/udev" ];
 }

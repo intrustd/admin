@@ -2,6 +2,9 @@ from socket import socket, AF_UNIX, SOCK_SEQPACKET, SOL_SOCKET, SCM_RIGHTS
 from contextlib import contextmanager
 from OpenSSL import crypto
 from flask import request, session
+from urllib.parse import urlparse
+from collections.abc import Sequence, Callable
+import signal
 import fcntl
 import array
 import struct
@@ -13,11 +16,15 @@ import datetime
 import select
 
 from .app import app
-from .errors import KiteNotLoggedInError, KiteAppFetchError
+from .errors import KiteNotLoggedInError, KiteAppFetchError, KiteAppInstallationError
 
 AttrFactory = {}
 
 KLM_IS_LAST = 0x0002
+
+def set_nonblocking(fd):
+    flag = fcntl.fcntl(fd, fcntl.F_GETFD)
+    fcntl.fcntl(fd, fcntl.F_SETFD, flag | os.O_NONBLOCK)
 
 class KiteLocalAttrClass(type):
     def __new__(cls, name, parents, dct):
@@ -136,12 +143,71 @@ class KiteLocalAttrStdout(KiteLocalAttr):
         self.ix = ix
 
     def _pack(self):
-        return struct.pack("!i", self.ix)
+        return struct.pack("!B", self.ix)
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        (ix,) = struct.unpack("!i", data)
+        (ix,) = struct.unpack("!B", data)
         return KiteLocalAttrStdout(ix)
+
+class KiteLocalAttrStderr(KiteLocalAttr):
+    attr_ty = 0x0019
+
+    def __init__(self, ix):
+        super(KiteLocalAttrStderr, self).__init__()
+        self.ix = ix
+
+    def _pack(self):
+        return struct.pack("!B", self.ix)
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        (ix,) = struct.unpack("!B", data)
+        return KiteLocalAttrStderr(ix)
+
+class KiteLocalAttrStdin(KiteLocalAttr):
+    attr_ty = 0x001A
+
+    def __init__(self, ix):
+        super(KiteLocalAttrStdin, self).__init__()
+        self.ix = ix
+
+    def _pack(self):
+        return struct.pack("!B", self.ix)
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        (ix,) = struct.unpack("!B", data)
+        return KiteLocalAttrStdin(ix)
+
+class KiteLocalAttrExitCode(KiteLocalAttr):
+    attr_ty = 0x001C
+
+    def __init__(self, ec):
+        super(KiteLocalAttrExitCode, self).__init__()
+        self.exit_code = ec
+
+    def _pack(self):
+        return struct.pack("!i", self.exit_code)
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        (exit_code,) = struct.unpack("!i", data)
+        return KiteLocalAttrExitCode(exit_code)
+
+class KiteLocalAttrArg(KiteLocalAttr):
+    attr_ty = 0x0017
+
+    def __init__(self, arg):
+        super(KiteLocalAttrArg, self).__init__()
+        self.arg = arg
+
+    def _pack(self):
+        return self.arg.encode('ascii')
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return KiteLocalAttrArg(data.decode('ascii'))
 
 class KiteLocalAttrPersonaPassword(KiteLocalAttr):
     attr_ty = 0x000E
@@ -689,6 +755,132 @@ class KiteLocalApi(object):
                 else:
                     continue
 
+    PIPE='pipe'
+    STDOUT='stdout'
+    def run_in_app(self, ip_or_app_name, cmd, persona=None, wait=False, stdin=None, stdout=None, stderr=None):
+        attrs = []
+        fds = []
+
+        close_fds = []
+        stdout_fileno = None
+
+        try:
+            ipaddress.ip_address(ip_or_app_name)
+
+            attrs.append(KiteLocalAttrAddress(ip_or_app_name))
+        except ValueError:
+            res = urlparse(ip_or_app_name)
+
+            if res.scheme == 'kite+app':
+                attrs += [ KiteLocalAttrAppUrl(res.hostname) ]
+            elif res.scheme == '':
+                attrs += [ KiteLocalAttrAppUrl(ip_or_app_name) ]
+            else:
+                raise ValueError("Expected kite+app as url scheme, got {}".format(res.scheme))
+
+            if persona is not None:
+                attrs.append(KiteLocalAttrPersonaId(persona))
+
+        if not isinstance(cmd, Sequence):
+            cmd = [ cmd ]
+
+        if isinstance(cmd, str):
+            cmd = [ cmd ]
+
+        for a in cmd:
+            attrs.append(KiteLocalAttrArg(a))
+
+        if stdin == self.PIPE:
+            rfd_in, wfd_in = os.pipe()
+
+            stdin = wfd_in
+            set_nonblocking(stdin)
+
+            attrs.append(KiteLocalAttrStdin(len(fds)))
+            fds.append(rfd_in)
+            close_fds.extend([wfd_in, rfd_in])
+        elif hasattr(stdin, 'fileno') and isinstance(stdin.fileno, Callable):
+            attrs.append(KiteLocalAttrStdin(len(fds)))
+            fds.append(stdin.fileno())
+            stdin = None
+        elif stdin is not None:
+            raise ValueError("Expected file-like object or PIPE for stdin")
+
+        if stdout == self.PIPE:
+            try:
+                rfd_out, wfd_out = os.pipe()
+            except:
+                map(os.close, close_fds)
+                raise
+
+            stdout = rfd_out
+            set_nonblocking(stdout)
+
+            attrs.append(KiteLocalAttrStdout(len(fds)))
+            stdout_fileno = len(fds)
+            fds.append(wfd_out)
+            close_fds.extend([wfd_out, rfd_out])
+        elif hasattr(stdout, 'fileno') and isinstance(stdout.fileno, Callable):
+            attrs.append(KiteLocalAttrStdout(len(fds)))
+            stdout_fileno = len(fds)
+            fds.append(stdout_fileno)
+            stdout = None
+        elif stdout is not None:
+            raise ValueError("Expected file-like object or PIPE for stdout")
+
+        if stderr == self.PIPE:
+            try:
+                rfd_err, wfd_err = os.pipe()
+            except:
+                map(os.close, close_fds)
+                raise
+
+            stderr = rfd_err
+            set_nonblocking(stderr)
+
+            attrs.append(KiteLocalAttrStderr(len(fds)))
+            fds.append(wfd_err)
+            close_fds.extend([wfd_err, rfd_err])
+        elif hasattr(stderr, 'fileno') and isinstance(stderr.fileno, Callable):
+            attrs.append(KiteLocalAttrStderr(len(fds)))
+            fds.append(stderr.fileno())
+
+            stderr = None
+        elif stderr == self.STDOUT:
+            if stdout_fileno is None:
+                raise ValueError("Requested stdout for stderr, but no stdout pipe specified")
+
+            stderr = None
+
+            attrs.append(KiteLocalAttrStderr(stdout_filenO))
+
+        req = self._write_request(0x0405, 0, attrs)
+
+        self.send_fds(req, fds=fds)
+
+        for fd in close_fds:
+            if fd not in (stdin, stdout, stderr):
+                os.close(fd)
+
+        return ContainerProcess(self, stdin=stdin, stdout=stdout, stderr=stderr)
+
+    def _run_in_app_complete(self):
+        (pktTy, attrs) = self._receive_packet()
+
+        response_attr = find_attr(attrs, KiteLocalAttrResponseCode)
+        if response_attr is None:
+            return 'internal-error', -1
+
+        elif response_attr.success:
+            exit_code_attr = find_attr(attrs, KiteLocalAttrExitCode)
+            if exit_code_attr is None:
+                return 'missing-code', -1
+            else:
+                return 'success', exit_code_attr.exit_code
+
+        else:
+            return 'server-error', -1
+
     INFER_SIGN = 'infer'
     def register_application(self, manifest_path, progress=None, signature_path=None):
         progress_attr = []
@@ -715,8 +907,7 @@ class KiteLocalApi(object):
         error = None
         buf = ''
 
-        flag = fcntl.fcntl(rfd, fcntl.F_GETFD)
-        fcntl.fcntl(rfd, fcntl.F_SETFD, flag | os.O_NONBLOCK)
+        set_nonblocking(rfd)
 
         if progress is not None:
             # Read in the entirety of the output
@@ -743,6 +934,8 @@ class KiteLocalApi(object):
                             else:
                                 (complete, _, rest) = line.partition(' ')
                                 (total, _, msg) = rest.partition(' ')
+                                if complete == 'error':
+                                    raise KiteAppInstallationError(rest)
                                 progress(msg, int(complete), int(total))
             finally:
                 os.close(rfd)
@@ -863,3 +1056,105 @@ def require_superuser(*args, **kwargs):
         _wrapped.__name__ = fn.__name__
 
         return _wrapped
+
+class ContainerProcess(object):
+    def __init__(self, api, stdin=None, stdout=None, stderr=None):
+        self.api = api
+        self.stdin = stdin
+        self.stdout = stdout
+        self.stderr = stderr
+
+        self.status = 'running'
+        self.returncode = None
+        self.pid = None
+
+    def _poll(self, timeout=None):
+        args = [ [self.api.socket], [], [] ]
+        if timeout is not None:
+            args.append(timeout)
+        (r, _, x) = select.select(*args)
+        if self.api.socket in r:
+            self.status, self.returncode = self._run_in_app_complete()
+
+        if self.api.socket in x:
+            r.status = 'internal-error'
+            r.returncode = 0xDEADBEEF
+
+    def poll(self):
+        return self._poll(timeout=0)
+
+    def wait(self):
+        return self._poll()
+
+    def send_signal(self):
+        raise NotImplementedError()
+
+    def terminate(self):
+        return self.send_signal(signal.SIGTERM)
+
+    def kill(self):
+        return self.send_signal(signal.SIGKILL)
+
+    def communicate(self, input=None):
+        out_buf = b""
+        err_buf = b""
+        complete = False
+
+        if isinstance(input, str):
+            input = input.encode()
+
+        while not complete or self.stdin is not None or self.stdout is not None or self.stderr is not None:
+            read_wait = [self.api.socket] if not complete else []
+            write_wait = []
+
+            if self.stdout is not None:
+                read_wait.append(self.stdout)
+
+            if self.stderr is not None:
+                read_wait.append(self.stderr)
+
+            if self.stdin is not None:
+                write_wait.append(self.stdin)
+
+            (r, w, x) = select.select(read_wait, write_wait, read_wait + write_wait)
+
+            if self.stdin in w:
+                if input is not None:
+                    written = os.write(self.stdin, input)
+                    input = input[written:]
+
+                if input is None or len(input) == 0:
+                    os.close(self.stdin)
+                    self.stdin = None
+
+            if self.stdout in r:
+                chunk = os.read(self.stdout, 1024)
+                out_buf += chunk
+
+                if len(chunk) == 0:
+                    os.close(self.stdout)
+                    self.stdout = None
+
+            if self.stderr in r:
+                chunk = os.read(self.stderr, 1024)
+                out_buf += chunk
+
+                if len(chunk) == 0:
+                    os.close(self.stderr)
+                    self.stderr = None
+
+            if self.api.socket in r:
+                self.status, self.returncode = self.api._run_in_app_complete()
+                complete = True
+                self.stdin = None
+
+            if self.stdin in x:
+                self.stdin = None
+
+            if self.stdout in x:
+                self.stdout = None
+
+            if self.stderr in x:
+                self.stderr = None
+
+        return ( out_buf, err_buf )

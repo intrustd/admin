@@ -12,6 +12,7 @@ import CSSTransition from 'react-transition-group/CSSTransition';
 import { HashRouter as Router,
          Route, Switch,
          Link } from 'react-router-dom';
+import { resetLogins } from 'stork-js/src/Logins.js';
 
 import Navbar from './Navbar';
 
@@ -192,7 +193,11 @@ export class AdminApp extends React.Component {
 
             header = [ this.state.ourInfo.persona.superuser ? settingsButton : null,
                        E('header', { className: 'kite-header' },
-		         E('h1', {}, `Welcome ${this.state.ourInfo.persona.display_name}`)) ];
+		         E('h1', {}, `Welcome ${this.state.ourInfo.persona.display_name}`),
+                         E('div', null,
+                           E('button', { className: 'uk-button uk-button-default',
+                                         onClick: () => resetLogins() },
+                             'Log out'))) ];
         }
 
         return E(Router, {},
