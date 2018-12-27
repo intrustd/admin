@@ -5518,8 +5518,8 @@ let
       version = "1.0.0";
       src = fetchgit {
         url = "git://github.com/kitecomputing/kite-js";
-        rev = "f53fb38591a5e07e6aaa6f1206e5719b8385b7a4";
-        sha256 = "093a6f889a6f5f6c79ee4b0578b81126c9050860f211405854572e827d9b1ac9";
+        rev = "a11dd0d3c185c8ccc03ba76c699ea0144681a474";
+        sha256 = "1rm9k07xkjanhmldrp5w2a0ykjw3dp0ksfmcmnlg0fh6wld09g6c";
       };
     };
     "stream-browserify-2.0.1" = {
