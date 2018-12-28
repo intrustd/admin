@@ -6,7 +6,7 @@ from base64 import b64encode
 import os
 import json
 
-from ..api import AppManifest, local_api, manifest_path, signature_path
+from ..api import AppManifest, local_api, make_manifest_path, make_signature_path
 from ..app import celery
 from ..errors import KiteAppFetchError, KiteAppInstallationError
 
@@ -54,11 +54,11 @@ def _install_app(self, appid):
 
     manifest_path = os.path.join(TMP_DIR, 'manifest.json')
 
-    urlretrieve(manifest_path(appid), manifest_path,
+    urlretrieve(make_manifest_path(appid), manifest_path,
                 reporthook=progress_report(0, MANIFEST_MAX_PROGRESS, 'Fetching manifest'))
 
     try:
-        urlretrieve(signature_path(appid), os.path.join(TMP_DIR, "manifest.json.sign"),
+        urlretrieve(make_signature_path(appid), os.path.join(TMP_DIR, "manifest.json.sign"),
                     reporthook=progress_report(MANIFEST_MAX_PROGRESS, MANIFEST_SIGN_MAX_PROGRESS,
                                                'Fetching manifest signature'))
 

@@ -22,10 +22,10 @@ AttrFactory = {}
 
 KLM_IS_LAST = 0x0002
 
-def manifest_path(appid):
+def make_manifest_path(appid):
     return "https://{}/manifest.json".format(appid)
 
-def signature_path(appid):
+def make_signature_path(appid):
     return "https://{}/manifest.json.sign".format(appid)
 
 def set_nonblocking(fd):

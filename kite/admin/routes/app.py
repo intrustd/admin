@@ -2,7 +2,7 @@ from flask import request, jsonify, abort, url_for, redirect
 from uuid import uuid4
 from celery.result import AsyncResult
 
-from ..api import local_api, require_logged_in, manifest_path
+from ..api import local_api, require_logged_in, make_manifest_path
 from ..permission import KITE_INSTALL_APP_PERMISSION, has_install_permission
 from ..app import app, redis_connection, celery
 
@@ -125,7 +125,7 @@ def application_latest_manifest(appid=None):
 
         mf = info['manifest']
 
-        return redirect(manifest_path(appid), code=302)
+        return redirect(make_manifest_path(appid), code=302)
 
 @app.route('/me/applications/<appid>',
            methods=['GET', 'PUT'])
