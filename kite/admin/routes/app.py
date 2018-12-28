@@ -1,8 +1,8 @@
-from flask import request, jsonify, abort, url_for
+from flask import request, jsonify, abort, url_for, redirect
 from uuid import uuid4
 from celery.result import AsyncResult
 
-from ..api import local_api, require_logged_in
+from ..api import local_api, require_logged_in, manifest_path
 from ..permission import KITE_INSTALL_APP_PERMISSION, has_install_permission
 from ..app import app, redis_connection, celery
 
@@ -58,6 +58,8 @@ def _get_application_status(appid, task_id=None):
                       'FAILURE': 'error',
                       'SUCCESS': app_info['state'] }
 
+        print("Got task state", task.state)
+
         try:
             app_info['state'] = state_map.get(task.state, 'failure')
             task_info = task.info
@@ -84,6 +86,46 @@ def _get_application_status(appid, task_id=None):
             app_info['progress'] = { 'total': 0, 'complete': 0, 'message': message }
 
     return app_info
+
+@app.route('/me/applications/<appid>/version', methods=['GET'])
+def application_version(appid=None):
+    '''Returns the major, minor, and revision number of an application'''
+    with local_api() as api:
+        info = api.get_application_info(appid)
+        if info is None:
+            abort(404)
+
+        mf = info['manifest']
+
+        if mf.version_info is None:
+            return jsonify({'major': 0, 'minor': 0, 'revision': 0})
+        else:
+            major, minor, revision = mf.version_info
+            return jsonify({ 'major': major,
+                             'minor': minor,
+                             'revision': revision })
+
+@app.route('/me/applications/<appid>/manifest/current', methods=['GET'])
+def application_manifset(appid=None):
+    with local_api() as api:
+        info = api.get_application_info(appid)
+        if info is None:
+            abort(404)
+
+        mf = info['manifest']
+        return jsonify(mf.to_dict())
+
+@app.route('/me/applications/<appid>/manifest/latest', methods=['GET'])
+def application_latest_manifest(appid=None):
+    '''Redirects to the latest version of the application manifest'''
+    with local_api() as api:
+        info = api.get_application_info(appid)
+        if info is None:
+            abort(404)
+
+        mf = info['manifest']
+
+        return redirect(manifest_path(appid), code=302)
 
 @app.route('/me/applications/<appid>',
            methods=['GET', 'PUT'])

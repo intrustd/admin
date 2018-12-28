@@ -22,6 +22,12 @@ AttrFactory = {}
 
 KLM_IS_LAST = 0x0002
 
+def manifest_path(appid):
+    return "https://{}/manifest.json".format(appid)
+
+def signature_path(appid):
+    return "https://{}/manifest.json.sign".format(appid)
+
 def set_nonblocking(fd):
     flag = fcntl.fcntl(fd, fcntl.F_GETFD)
     fcntl.fcntl(fd, fcntl.F_SETFD, flag | os.O_NONBLOCK)
@@ -428,7 +434,7 @@ def find_attr(attrs, ty):
 class AppManifest(object):
     __slots__ = ( 'name', 'domain', 'nix_closures',
                   'run_as_admin', 'singleton', 'app_url',
-                  'icon', )
+                  'icon', 'version' )
     def __init__(self, json_data):
         self.name = json_data['name']
         self.domain = json_data['domain']
@@ -436,18 +442,33 @@ class AppManifest(object):
         self.run_as_admin = json_data.get('run-as-admin', False)
         self.singleton = json_data.get('singleton', False)
         self.app_url = json_data.get('app-url')
+        self.version = json_data.get('version', '0.0.0')
+        if self.version_info is None:
+            self.version = "0.0.0"
         self.icon = json_data.get('icon')
 
     def to_dict(self, web_response=True):
         ret = { 'name': self.name,
                 'domain': self.domain,
                 'app-url': self.app_url,
+                'version': self.version,
                 'icon': self.icon } # TODO return meta information
         if not web_response:
             ret['nix-closure'] = self.nix_closures
             ret['run-as-admin'] = self.run_as_admin
             ret['singleton'] = self.singleton
         return ret
+
+    @property
+    def version_info(self):
+        v = self.version.split('.')
+        if len(v) != 3:
+            return None
+
+        try:
+            return (int(v[0]), int(v[1]), int(v[2]),)
+        except ValueError:
+            return None
 
     @property
     def nix_closure(self):
