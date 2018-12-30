@@ -1041,6 +1041,9 @@ def require_logged_in(*args, **kwargs):
 
                     return "Not found", 404
                 else:
+                    if not info.get('logged_in', False):
+                        return "Unauthorized", 401
+
                     persona_id = info['persona_id']
 
                     persona_info = api.get_persona_info(persona_id)
