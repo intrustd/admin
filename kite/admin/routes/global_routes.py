@@ -4,7 +4,7 @@ from ..api import local_api, require_superuser
 from ..app import app
 
 @app.route('/personas')
-@require_superuser(allow_local_network=True)
+@require_superuser(allow_local_network=True, require_password=True)
 def users(user=None, api=None, container=None):
     user_info = []
 
