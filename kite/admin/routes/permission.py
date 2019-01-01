@@ -1,4 +1,4 @@
-from flask import request, jsonify, abort
+from flask import request, jsonify, abort, redirect
 from collections.abc import Iterable
 from ipaddress import ip_address, IPv4Address
 
@@ -110,3 +110,27 @@ def permissions(addr):
 
         tokens = TokenSet(api, info.get('tokens',[]))
         return jsonify([p.canonical for p in tokens.all_permissions])
+
+@app.route('/login', methods=['POST'])
+def do_login():
+    if request.content_length > (16 * 1024):
+        return 'Payload too large', 413
+
+    with local_api() as api:
+        info = api.get_container_info(request.remote_addr)
+        if info is None:
+            abort(404)
+
+        if not info.get('logged_in', False):
+            pw = request.get_data().decode('ascii')
+
+            res = api.update_container(request.remote_addr, credential='pwd:{}'.format(pw))
+
+            if res.not_found:
+                abort(404)
+            elif res.internal_error:
+                abort(500)
+            elif res.not_allowed:
+                abort(401)
+
+    return redirect('/me')

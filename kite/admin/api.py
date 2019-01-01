@@ -87,6 +87,14 @@ class KiteLocalAttrResponseCode(KiteLocalAttr):
         return self.code == 0
 
     @property
+    def internal_error(self):
+        return self.code == 6
+
+    @property
+    def not_allowed(self):
+        return self.code == 8
+
+    @property
     def not_found(self):
         return self.code == 7
 
@@ -315,6 +323,21 @@ class KiteLocalAttrTokenId(KiteLocalAttr):
     def hex_str(self):
         return binascii.hexlify(self.token_id).decode('ascii')
 
+class KiteLocalAttrCredential(KiteLocalAttr):
+    attr_ty = 0x0020
+
+    def __init__(self, cred):
+        super(KiteLocalAttrCredential, self).__init__()
+
+        self.cred = cred
+
+    def _pack(self):
+        return self.cred.encode('ascii')
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return KiteLocalAttrCredential(data.decode('ascii'))
+
 class KiteLocalAttrPersonaId(KiteLocalAttr):
     attr_ty = 0x0001
 
@@ -489,8 +512,6 @@ class KiteLocalApi(object):
                 sockpath = os.path.join(os.environ['KITE_APPLIANCE_DIR'], 'applianced-control')
             else:
                 raise TypeError("expected 'sockpath' argument or 'KITE_APPLIANCE_DIR' environment variable")
-
-        print("Using ", sockpath, " for admin socket")
 
         self.socket = socket(AF_UNIX, SOCK_SEQPACKET, 0)
         try:
@@ -730,6 +751,23 @@ class KiteLocalApi(object):
                 return ret
 
             return None
+
+    def update_container(self, address, credential=None):
+        attrs = [ KiteLocalAttrAddress(address) ]
+        if credential is not None:
+            attrs.append(KiteLocalAttrCredential(credential))
+
+        req = self._write_request(0x0403, 0, attrs)
+        self.socket.send(req)
+
+        (pktTy, attrs) = self._receive_packet()
+
+        if ( pktTy & 0x8000 ) == 0:
+            raise ValueError("Invalid reply received")
+        else:
+            success_attr = self._get_response_code(attrs)
+
+            return success_attr
 
     def close(self):
         self.socket.close()
@@ -1041,9 +1079,9 @@ def require_logged_in(*args, **kwargs):
 
                     return "Not found", 404
                 else:
-                    if kwargs.get('require_password', False) and \
+                    if options.get('require_password', False) and \
                        not info.get('logged_in', False):
-                        return "Unauthorized", 401
+                        return "Unauthorized", 401, [ ("WWW-Authenticate", "X-Kite-Login") ]
 
                     persona_id = info['persona_id']
 
