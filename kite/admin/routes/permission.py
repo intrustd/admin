@@ -1,4 +1,4 @@
-from flask import request, jsonify, abort, redirect
+from flask import request, jsonify, abort, redirect, url_for
 from collections.abc import Iterable
 from ipaddress import ip_address, IPv4Address
 
@@ -133,4 +133,4 @@ def do_login():
             elif res.not_allowed:
                 abort(401)
 
-    return redirect('/me')
+    return redirect(url_for('me', _scheme='kite+app', _external=True), code=303)

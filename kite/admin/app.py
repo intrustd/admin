@@ -27,6 +27,10 @@ app.secret_key = "KITEADMINDEBUGRANDOM BLAH"
 if 'KITE_ADMIN_DEBUG' in os.environ:
     app.wsgi_app = TranslateAddressMiddleware(app.wsgi_app)
 
+app.config.update(dict(
+    PREFERRED_URL_SCHEME="kite+app"
+))
+
 celery = Celery(app.import_name,
                 backend='redis://localhost:6379',
                 broker='redis://localhost:6379')
