@@ -3,7 +3,20 @@ import { PortalServer } from 'stork-js/src/Portal.js';
 import { render } from 'react-dom';
 import { createElement } from 'react';
 
-window.installKite({ permissions: [ 'kite+perm://admin.flywithkite.com/nuclear' ] }) //{require_login: true})
+var mainContainer, inAdminMode = false
+
+function updateApp() {
+    render(createElement(AdminApp, { inAdminMode }), mainContainer);
+}
+
+function onLogin() {
+    inAdminMode = true
+    updateApp()
+}
+
+window.installKite({ permissions: [ 'kite+perm://admin.flywithkite.com/nuclear' ],
+                     autoLogin: true,
+                     loginHook: onLogin })
 
 var { AdminApp } = require('./Admin.js') // Use require to sequence this after installKite
 
@@ -11,7 +24,7 @@ var { AdminApp } = require('./Admin.js') // Use require to sequence this after i
 if ( location.hash.startsWith('#kite-auth') ) {
     window.kitePortalServer = new PortalServer()
 } else {
-    var container = document.createElement('div');
-    document.body.appendChild(container);
-    render(createElement(AdminApp), container);
+    mainContainer = document.createElement('div');
+    document.body.appendChild(mainContainer);
+    updateApp()
 }

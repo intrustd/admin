@@ -97,7 +97,7 @@ class Users extends React.Component {
               { method: 'GET', cache: 'no-store' })
             .then((r) => r.json())
             .then((users) => { this.setState({users}) })
-            .catch((error) => this.setState({error}))
+            .catch((error) => { console.error("Error fetching personas", error); this.setState({error}) })
     }
 
     get addUserDialog() {
@@ -111,7 +111,7 @@ class Users extends React.Component {
                       E('div', null, 'Loading'))
 
         if ( this.state.error ) {
-            users = E(CSSTransition, {}, E('div', null, "Error"))
+            users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0}}, E('div', null, "Error"))
         } else if ( this.state.users !== null ) {
             users = this.state.users.map(
                 (user) =>

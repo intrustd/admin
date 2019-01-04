@@ -23,6 +23,7 @@ def missing_key(error):
 
 class KiteWrongType(Exception):
     Number = 'number'
+    String = 'string'
     List = 'array'
     Dictionary = 'object'
     Null = 'null'
