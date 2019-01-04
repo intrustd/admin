@@ -25,8 +25,9 @@ export class UserDialog extends React.Component {
     }
 
     componentDidMount () {
-        var modal = UIKit.modal(this.modalRef.current)
-        modal.show()
+    }
+
+    componentWillUnmount() {
     }
 
     close() {
@@ -52,9 +53,10 @@ export class UserDialog extends React.Component {
         this.setState({mode: UserDialogState.CREATING,
                        error: {} })
 
-        fetch('/personas',
+        fetch('kite+app://admin.flywithkite.com/personas',
               { method: 'POST',
-                body: JSON.stringify(creationInfo) })
+                body: JSON.stringify(creationInfo),
+                headers: { 'Content-type': 'application/json' }})
             .then((r) => {
                 if ( r.status == 200 )
                     r.json().then((persona) => {
@@ -86,7 +88,8 @@ export class UserDialog extends React.Component {
             error = E('div', { className: 'uk-alert uk-alert-danger' },
                       this.error.message)
 
-        return E('div', { className: 'uk-modal-group',
+        return E('div', { className: 'uk-modal-group uk-modal uk-open',
+                          style: { display: 'block' },
                           ref: this.modalRef },
                  E('div', { className: 'uk-modal-dialog' },
                    E('button', { className: 'uk-modal-close-default',

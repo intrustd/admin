@@ -1,10 +1,18 @@
-section h2 {
-    text-transform: uppercase;
-    font-size: 10pt;
+section.container > header {
     margin: 0;
     padding: 4px;
-    display: inline-block;
+    display: block;
     border: 1px solid #ccc;
+
+    & > .uk-iconnav {
+        float: right;
+    }
+
+    & > h2 {
+        text-transform: uppercase;
+        font-size: 10pt;
+        display: inline;
+    }
 }
 
 .app-tiles-container, .users-container {

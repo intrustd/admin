@@ -13,6 +13,7 @@ import { HashRouter as Router,
          Route, Switch,
          Link } from 'react-router-dom';
 import { resetLogins } from 'stork-js/src/Logins.js';
+import { KiteLoadingIndicator } from 'stork-js/src/react.js';
 
 import Navbar from './Navbar';
 
@@ -51,7 +52,7 @@ class Apps extends React.Component {
     render() {
         var apps =
             E(CSSTransition, { timeout: 400, classNames: 'app-tile-message', id: 'loading' },
-              E('div', null, "loading..."))
+              E(KiteLoadingIndicator, { key: 'loading' }))
 
         if ( this.state.apps ) {
             apps = this.state.apps.map(
@@ -69,7 +70,7 @@ class Apps extends React.Component {
         }
 
         return E('section', { className: 'container app-tiles-container' },
-                 E('h2', null, 'Apps'),
+                 E('header', null, E('h2', null, 'Apps')),
                  E(TransitionGroup, {className: 'app-tiles'}, apps))
     }
 }
@@ -102,13 +103,19 @@ class Users extends React.Component {
 
     get addUserDialog() {
         if ( this.state.addUser ) {
-            return E(UserDialog, { user: null, onClose: () => { this.setState({addUser: false}) } })
+            return E(UserDialog, { user: null,
+                                   onClose: () => { this.setState({addUser: false}) },
+                                   onAddUser: (persona) => {
+                                       console.log("on add user")
+                                       this.state.users.splice(0, 0, persona)
+                                       this.setState({addUser: false})
+                                   }})
         }
     }
 
     render() {
         var users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0 }},
-                      E('div', null, 'Loading'))
+                      E(KiteLoadingIndicator, { key: 'loading' }))
 
         if ( this.state.error ) {
             users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0}}, E('div', null, "Error"))
@@ -122,10 +129,11 @@ class Users extends React.Component {
         }
 
         return E('section', {className: 'container users-container'},
-                 E('h2', null, 'Users',
+                 E('header', null,
                    E('ul', { className: 'uk-iconnav'},
                      E('li', {onClick: () => { this.setState({addUser: true}) }},
-                       E('a', null, E('i', { className: 'fa fa-plus fa-fw'}))))),
+                       E('a', null, E('i', { className: 'fa fa-plus fa-fw'})))),
+                   E('h2', null, 'Users')),
                  this.addUserDialog,
                  E(TransitionGroup, {className: 'users'},
                    users))
