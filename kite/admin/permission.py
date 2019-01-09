@@ -30,7 +30,7 @@ def _has_admin_permission(p, container_info):
                                      KITE_ADMIN_NUCLEAR_PERMISSION,
                                      KITE_LOGIN_PERMISSION,
                                      KITE_SITE_PERMISSION,
-                                     KITE_GUEST_PERMISION )
+                                     KITE_GUEST_PERMISSION )
 
 def get_builtin_perm(perm_name):
     if perm_name == KITE_ADMIN_NUCLEAR_PERMISSION:
