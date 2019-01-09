@@ -2,12 +2,14 @@ from urllib.parse import urlparse
 from datetime import datetime, timedelta
 from functools import reduce
 from tempfile import NamedTemporaryFile
+from binascii import hexlify
 import os
 import operator
 import json
 import re
 import sys
 
+from .api import local_api
 from .util import Signature
 from .errors import KitePermissionsError, KiteNoSuchAppError, \
     KiteNoSuchAppsError, KiteNoSuchPermissionError
@@ -17,9 +19,18 @@ KITE_INSTALL_APP_PERMISSION='install-apps'
 KITE_ADMIN_NUCLEAR_PERMISSION='nuclear'
 KITE_LOGIN_PERMISSION='login'
 KITE_SITE_PERMISSION='site'
+KITE_GUEST_PERMISSION='guest'
 
 KITE_TRANSFER_SUFFIX='/transfer'
 KITE_TRANSFER_ONCE_SUFFIX='/transfer_once'
+
+def _has_admin_permission(p, container_info):
+    base_perm = p.base_permission
+    return base_perm.permission in ( KITE_INSTALL_APP_PERMISSION,
+                                     KITE_ADMIN_NUCLEAR_PERMISSION,
+                                     KITE_LOGIN_PERMISSION,
+                                     KITE_SITE_PERMISSION,
+                                     KITE_GUEST_PERMISSION )
 
 def get_builtin_perm(perm_name):
     if perm_name == KITE_ADMIN_NUCLEAR_PERMISSION:
@@ -37,6 +48,11 @@ def get_builtin_perm(perm_name):
                  'needs_persona': True,
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 }
+    elif perm_name == KITE_GUEST_PERMISSION:
+        return { 'needs_site': False,
+                 'needs_persona': True,
+                 'needs_login': False,
+                 'max_ttl': None }
     else:
         return None
 
@@ -280,6 +296,9 @@ class TokenSet(object):
             self._all_permissions = list(perms)
             return self._all_permissions
 
+    def __iter__(self):
+        return iter(self.tokens)
+
 class TokenRequest(object):
     def __init__(self, permissions, ttl=None, site=None):
         self.permissions = permissions
@@ -478,11 +497,16 @@ class Token(object):
         # Collect all transferrable permissions from tokens
         transferrable = reduce(operator.or_, (self._make_permission(p).transferred for p in tokens.all_permissions), set())
 
-        print("Transferrable is ", transferrable)
-
         if container_info.get('logged_in', False) or \
            tokens.check_permission(Permission(KITE_ADMIN_NUCLEAR_PERMISSION, app_url=KITE_ADMIN_APP_URL)):
-            accepted = list(self.permissions)
+            for p in self.permissions:
+                if p.app == KITE_ADMIN_APP_URL:
+                    if _has_admin_permission(p, container_info):
+                        accepted.append(p)
+                    else:
+                        denied.append(p)
+                else:
+                    accepted.append(p)
         else:
             for app, perms in self.grouped_permissions().items():
                 res = self._verify_transfer(transferrable, app, perms, api, persona_id=persona_id)
@@ -519,6 +543,10 @@ class Token(object):
         kwargs['login_required'] = d.get('login_required', False)
         return Token(**kwargs)
 
+    def _mint_secret(self):
+        MIN_SECRET_LENGTH = 128
+        return hexlify(os.urandom(MIN_SECRET_LENGTH)).decode('ascii')
+
     def save(self, api):
         '''Saves this permission by writing it to a temporary file while
         calculating the sha256sum.
@@ -528,24 +556,26 @@ class Token(object):
 
         This becomes the token identifier.
         '''
-        fl = NamedTemporaryFile(mode='wb', dir=api.tokens_dir)
+        with NamedTemporaryFile(mode='wb', dir=api.tokens_dir) as fl:
 
-        data = json.dumps(self.to_dict(), ensure_ascii=True)
-        fl.write(data.encode('ascii'))
+            json_data = self.to_dict()
+            json_data['secret'] = self._mint_secret()
 
-        sfl = Signature(data, private_key=api.private_key)
+            data = json.dumps(json_data, ensure_ascii=True)
+            fl.write(data.encode('ascii'))
 
-        token = "{}.{}".format(sfl.hex_digest, sfl.hex_signature)
+            sfl = Signature(data)
+            token = sfl.hex_digest
 
-        token_filename = os.path.join(api.tokens_dir, sfl.hex_digest)
+            token_filename = os.path.join(api.tokens_dir, sfl.hex_digest)
 
-        try:
-            os.link(fl.name, token_filename)
-        except FileExistsError:
-            pass
+            try:
+                os.link(fl.name, token_filename)
+            except FileExistsError:
+                pass
 
-        return token
+            return token
 
-
-def has_install_permission(user):
-    return True
+def has_install_permission(perms):
+    return Permission(KITE_INSTALL_APP_PERMISSION, KITE_ADMIN_APP_URL) in perms or \
+        Permission(KITE_ADMIN_NUCLEAR_PERMISSION, KITE_ADMIN_APP_URL) in perms
