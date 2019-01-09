@@ -3,7 +3,7 @@ from uuid import uuid4
 from celery.result import AsyncResult
 
 from ..api import local_api, require_logged_in, make_manifest_path
-from ..permission import KITE_INSTALL_APP_PERMISSION, has_install_permission
+from ..permission import TokenSet, has_install_permission
 from ..app import app, redis_connection, celery
 
 from ..tasks.app import install_app
@@ -151,7 +151,19 @@ def application(appid=None):
         @require_logged_in
         def handle(api=None, user=None, container=None):
             # Lookup user permissions in our global database
-            if has_install_permission(user):
+            tokens = TokenSet(api, container.get('tokens', []))
+            all_perms = set(p for p in tokens.all_permissions)
+
+            # Allow any app which has been explicitly delegated the
+            # install permission, any site verified container, or any
+            # logged in user to update the application.
+            #
+            # TODO we may want to globally configure whether a user
+            # can upgrade applications.
+            print("Container info", container)
+            if has_install_permission(all_perms) or \
+               any(token.site is not None for token in tokens) or \
+               container.get('logged_in', False):
 
                 # Check redis to see if there is a celery task in progress for this application id
                 with redis_connection() as redis:
