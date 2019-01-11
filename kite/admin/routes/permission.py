@@ -53,6 +53,29 @@ def _validate_tokens(tokens):
 
     return TokenRequest(permission, ttl=ttl_seconds, site=site)
 
+def _make_tokens(api):
+    tokens = request.json
+    tokens = _validate_tokens(tokens)
+
+    accept_partial = 'partial' in request.args
+
+    info = api.get_container_info(request.remote_addr)
+    if info is None:
+        abort(404)
+
+    token = tokens.tokenize(api, persona_id=info.get('persona_id'),
+                            site_id=info.get('site_id'))
+    if token is None:
+        abort(404)
+
+    # Now verify that we have transfer permissions for every permission
+    result = token.verify_permissions(api, info, is_transfer=tokens.is_transfer)
+
+    if accept_partial or result.all_accepted:
+        return token, result
+    else:
+        return None, result
+
 @app.route('/tokens', methods=['POST'])
 def tokens():
     '''How this works... Post to /tokens with a set of permissions
@@ -61,36 +84,33 @@ def tokens():
     You will either get back a new token, or a 401 authorization
     required with several Link: headers with rel="method"  values.
 
-    The returrned token will automatically have a scoping and an
+    The returned token will automatically have a scoping and an
     expiry time set. Thex token will not expire any later than what's
     requested in expiry time, but it may expire sooner. Please check.
     '''
-
-    tokens = request.json
-    tokens = _validate_tokens(tokens)
-
-    accept_partial = 'partial' in request.args
-
     with local_api() as api:
-        info = api.get_container_info(request.remote_addr)
-        if info is None:
-            abort(404)
-
-        token = tokens.tokenize(api, persona_id=info.get('persona_id'),
-                                site_id=info.get('site_id'))
+        token, result = _make_tokens(api)
         if token is None:
-            abort(404)
-
-        # Now verify that we have transfer permissions for every permission
-        result = token.verify_permissions(api, info, is_transfer=tokens.is_transfer)
-
-        if accept_partial or result.all_accepted:
+            raise KitePermissionDeniedError(result.denied)
+        else:
             token_string = token.save(api)
 
-            return jsonify({ 'token': token_string,
-                             'expiration': token.expires.isoformat() if token.expires is not None else None })
-        else:
+    return jsonify({ 'token': token_string,
+                     'expiration': token.expires.isoformat() if token.expires is not None else None })
+
+@app.route('/tokens/preview', methods=['POST'])
+def tokens_preview():
+    with local_api() as api:
+        cur_info = api.get_container_info(request.remote_addr)
+        if cur_info is None:
+            abort(404)
+
+        token, result = _make_tokens(api)
+        if token is None:
             raise KitePermissionDeniedError(result.denied)
+        else:
+            description = token.describe(api, cur_info.get('persona_id'))
+            return jsonify(description.to_json())
 
 @app.route('/<addr>/permissions')
 def permissions(addr):

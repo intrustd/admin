@@ -1,3 +1,6 @@
+from flask import request
+from .app import app
+
 from OpenSSL.crypto import sign
 
 from binascii import hexlify, unhexlify
@@ -20,3 +23,14 @@ class Signature(object):
     @property
     def hex_signature(self):
         return hexlify(self.signature).decode('ascii')
+
+def no_cache(fn):
+    def no_cache_wrapped(*args, **kwargs):
+        r = app.make_response(fn(*args, **kwargs))
+        if 'Cache-control' not in r.headers and \
+           request.method == 'GET':
+            r.headers['Cache-control'] = 'no-cache'
+        return r
+
+    no_cache_wrapped.__name__ = fn.__name__
+    return no_cache_wrapped

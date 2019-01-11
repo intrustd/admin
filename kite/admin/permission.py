@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from functools import reduce
 from tempfile import NamedTemporaryFile
 from binascii import hexlify
+from collections import OrderedDict
 import os
 import operator
 import json
@@ -57,17 +58,18 @@ def get_builtin_perm(perm_name):
         return None
 
 def find_perm(perms, perm_name):
-    for p in perms:
+    for i, p in enumerate(perms):
         if 'name' in p and p['name'] == perm_name:
-            return p
+            return p, i
         elif 'regex' in p and re.fullmatch(p['regex'], perm_name):
-            return p
-    return None
+            return p, i
+    return None, None
 
 class ApplicationUrl(object):
     def __init__(self, app_domain, app_name):
         self.domain = app_domain
         self.name = app_name
+
 
 class PermSecurity(object):
     '''Permissions can only be assigned to tokens that meet certain criteria.
@@ -78,18 +80,22 @@ class PermSecurity(object):
     This class describes what kind of token is required for this permission
     '''
 
-    __slots__ = ( 'needs_site',
+    __slots__ = ( 'description',
+                  'needs_site',
                   'needs_persona',
                   'needs_login',
                   'max_ttl',
-                  'dynamic', )
+                  'dynamic',
+                  'index', )
 
     def __init__(self,
                  needs_site = False,
                  needs_persona = False,
                  needs_login = False,
                  max_ttl = None,
-                 dynamic = False):
+                 dynamic = False,
+                 index = None,
+                 description = None):
         '''Initialize this permission security object.
 
         :param bool needs_site Whether or not this permission needs to be specific to a site
@@ -102,12 +108,14 @@ class PermSecurity(object):
         self.needs_login = needs_login
         self.max_ttl = max_ttl
         self.dynamic = dynamic
+        self.index = index
+        self.description = description
 
     def __str__(self):
         return repr(self)
 
     def __repr__(self):
-        return 'PermSecurity(needs_site={self.needs_site}, needs_persona={self.needs_persona}, needs_login={self.needs_login}, max_ttl={self.max_ttl}, dynamic={self.dynamic})'.format(self=self)
+        return 'PermSecurity(needs_site={self.needs_site}, needs_persona={self.needs_persona}, needs_login={self.needs_login}, max_ttl={self.max_ttl}, dynamic={self.dynamic}, index={self.index}, description={self.description})'.format(self=self)
 
     def __or__(self, other):
         max_ttl = self.max_ttl
@@ -122,12 +130,14 @@ class PermSecurity(object):
                             dynamic=self.dynamic or other.dynamic)
 
     @staticmethod
-    def from_json(d):
+    def from_json(d, index=None):
         return PermSecurity(needs_site=d.get('needs_site'),
                             needs_persona=d.get('needs_persona'),
                             needs_login=d.get('needs_login'),
                             max_ttl=d.get('max_ttl'),
-                            dynamic=d.get('dynamic', False))
+                            dynamic=d.get('dynamic', False),
+                            description=d.get('description', None),
+                            index=index)
 
 class Permission(object):
     def __init__(self, url_or_perm, app_url=None, relative_to=None):
@@ -247,7 +257,7 @@ class Permission(object):
         try:
             with open(os.path.join(closure, "permissions.json")) as perms:
                 perms_info = json.load(perms)
-                perm = find_perm(perms_info, self.permission)
+                perm, i = find_perm(perms_info, self.permission)
         except FileNotFoundError:
             perm = None
 
@@ -268,11 +278,11 @@ class Permission(object):
             stdout, stderr = proc.communicate()
 
             if proc.returncode == 0:
-                return PermSecurity.from_json(json.loads(stdout))
+                return PermSecurity.from_json(json.loads(stdout), i)
             else:
                 raise KiteNoSuchPermissionError(self.permission)
         else:
-            return PermSecurity.from_json(perm)
+            return PermSecurity.from_json(perm, i)
 
 class TokenSet(object):
     def __init__(self, api, token_names):
@@ -350,7 +360,7 @@ class TokenRequest(object):
             required_expiry = datetime.now() + timedelta(seconds=required_security.max_ttl)
 
         new_expiry = self.expiry
-        if new_expiry is None or required_expiry < new_expiry:
+        if new_expiry is None or (required_expiry is not None and required_expiry < new_expiry):
             new_expiry = required_expiry
 
         return Token(persona_id=persona_needed, site_id=site_needed,
@@ -575,6 +585,116 @@ class Token(object):
                 pass
 
             return token
+
+    def describe(self, api, persona_id):
+        r = TokenDescription()
+
+        grouped = self.grouped_permissions()
+        for app, perms in grouped.items():
+            app_info = api.get_application_info(app)
+            section = r.get_section(app_info['manifest'])
+
+            # Ask for a dynamic description
+            cmd = "/app/perms --describe {persona_flag} --application {application}".format(
+                persona_flag = '' if persona_id is None else "--persona {}".format(persona_id),
+                application = app)
+
+            proc = api.run_in_app(app, cmd, persona=persona_id, wait=True,
+                                  stdout=api.PIPE, stdin=api.PIPE, stderr=sys.stdout)
+
+            stdout, _ = proc.communicate("\n".join(p.canonical for p in perms))
+
+            if proc.returncode == 0:
+                entries = json.loads(stdout)
+                for e in entries:
+                    section.add_entry(e)
+
+            else:
+                raise ValueError("Could not describe permissions for {}: process exited with {}".format(app, proc.returncode))
+
+        return r
+
+class TokenDescriptionEntry(object):
+    __slots__ = ( 'short',
+                  'long',
+                  'image', )
+
+    def __init__(self, short_or_desc, long=None, image=None):
+        if isinstance(short_or_desc, str):
+            self.short = short_or_desc
+            self.long = long
+            self.image = image
+
+        elif isinstance(short_or_desc, dict):
+            self.short = short_or_desc.get('short')
+            self.long = short_or_desc.get('long', '')
+            self.image = short_or_desc.get('image')
+
+        else:
+            raise TypeError("Expected either short description or JSON-dict")
+
+        if self.short is None:
+            raise TypeError("No short description given for permission")
+
+    def to_json(self):
+        r = { 'short': self.short }
+
+        if self.long is not None:
+            r['long'] = self.long
+
+        if self.image is not None:
+            r['image'] = self.image
+
+        return r
+
+class TokenDescriptionSection(object):
+    '''Description of permissions associated with a particular application
+    '''
+    def __init__(self, mf, api=None, persona_id=None):
+        self.app_manifest = mf
+        self.entries = []
+        self._api = api
+        self._persona_id = persona_id
+        self._all_permissions = None
+        self._permissions = set()
+        self._dynamic_permissions = {}
+
+    @property
+    def all_permissions(self):
+        if self._all_permissions is None:
+            with open(os.path.join(self.app_manifest.nix_closure, "permissions.json")) as perms:
+                self._all_permissions = json.loads(perms)
+        return self._all_permissions
+
+    def add_entry(self, short_or_desc):
+        entry = TokenDescriptionEntry(short_or_desc)
+        self.entries.append(entry)
+        return entry
+
+    def to_json(self):
+        return { 'domain': self.app_manifest.domain,
+                 'name': self.app_manifest.name,
+                 'run-as-admin': self.app_manifest.run_as_admin,
+                 'singleton': self.app_manifest.singleton,
+                 'version': self.app_manifest.version,
+                 'icon': self.app_manifest.icon,
+
+                 'entries': [ e.to_json() for e in self.entries ] }
+
+class TokenDescription(object):
+    '''Description of a set of permissions
+    '''
+    def __init__(self):
+        self.apps = OrderedDict()
+
+    def get_section(self, app_manifest):
+        if app_manifest.domain not in self.apps:
+            self.apps[app_manifest.domain] = TokenDescriptionSection(app_manifest)
+
+        return self.apps[app_manifest.domain]
+
+    def to_json(self):
+        return { 'sections': [section.to_json() for section in self.apps.values()] }
 
 def has_install_permission(perms):
     return Permission(KITE_INSTALL_APP_PERMISSION, KITE_ADMIN_APP_URL) in perms or \

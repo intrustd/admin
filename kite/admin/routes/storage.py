@@ -2,6 +2,7 @@ from flask import request, jsonify, abort
 
 from ..api import local_api
 from ..app import app
+from ..util import no_cache
 
 import pyudev
 
@@ -17,6 +18,7 @@ def is_physical_partition(dev):
         return False
 
 @app.route('/storage/disks')
+@no_cache
 def disks():
     '''Returns a JSON list of all available disks
     '''
