@@ -594,23 +594,28 @@ class Token(object):
             app_info = api.get_application_info(app)
             section = r.get_section(app_info['manifest'])
 
-            # Ask for a dynamic description
-            cmd = "/app/perms --describe {persona_flag} --application {application}".format(
-                persona_flag = '' if persona_id is None else "--persona {}".format(persona_id),
-                application = app)
-
-            proc = api.run_in_app(app, cmd, persona=persona_id, wait=True,
-                                  stdout=api.PIPE, stdin=api.PIPE, stderr=sys.stdout)
-
-            stdout, _ = proc.communicate("\n".join(p.canonical for p in perms))
-
-            if proc.returncode == 0:
-                entries = json.loads(stdout)
-                for e in entries:
-                    section.add_entry(e)
-
+            if app == KITE_ADMIN_APP_URL:
+                entries = _describe_admin_perms(perms)
             else:
-                raise ValueError("Could not describe permissions for {}: process exited with {}".format(app, proc.returncode))
+
+                # Ask for a dynamic description
+                cmd = "/app/perms --describe {persona_flag} --application {application}".format(
+                    persona_flag = '' if persona_id is None else "--persona {}".format(persona_id),
+                    application = app)
+
+                proc = api.run_in_app(app, cmd, persona=persona_id, wait=True,
+                                      stdout=api.PIPE, stdin=api.PIPE, stderr=sys.stdout)
+
+                stdout, _ = proc.communicate("\n".join(p.canonical for p in perms))
+
+                if proc.returncode == 0:
+                    entries = json.loads(stdout)
+
+                else:
+                    raise ValueError("Could not describe permissions for {}: process exited with {}".format(app, proc.returncode))
+
+            for e in entries:
+                section.add_entry(e)
 
         return r
 
@@ -699,3 +704,21 @@ class TokenDescription(object):
 def has_install_permission(perms):
     return Permission(KITE_INSTALL_APP_PERMISSION, KITE_ADMIN_APP_URL) in perms or \
         Permission(KITE_ADMIN_NUCLEAR_PERMISSION, KITE_ADMIN_APP_URL) in perms
+
+def _describe_admin_perms(ps):
+    ps = set(p.permission for p in ps)
+    r = []
+
+    if KITE_ADMIN_NUCLEAR_PERMISSION in ps:
+        return [ { 'short': 'Administer this user' } ]
+
+    if KITE_INSTALL_APP_PERMISSION in ps:
+        r.append({ 'short': 'Install applications for this user' })
+
+    if KITE_LOGIN_PERMISSION in ps:
+        r.append({ 'short': 'Login as this user' })
+
+    if KITE_GUEST_PERMISSION in ps:
+        r.append({ 'short': 'Invite others to view this user\'s data' })
+
+    return r
