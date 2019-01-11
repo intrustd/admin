@@ -6,10 +6,8 @@ from .app import app
 from . import routes
 
 @app.route('/me')
-@require_logged_in
+@require_logged_in(allow_guest=True)
 def me(user=None, api=None, container=None):
-    print("Responding to me", request.remote_addr)
-
     container['persona'] = user
 
     rsp = jsonify(container)

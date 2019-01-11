@@ -3,9 +3,11 @@ from flask import request, jsonify, abort, redirect, url_for
 from ..api import local_api, require_superuser
 from ..app import app
 from ..errors import KiteWrongType, KiteMissingKey
+from ..util import no_cache
 
 @app.route('/personas', methods=[ 'GET', 'POST' ])
 @require_superuser(allow_local_network=True, require_password=True)
+@no_cache
 def personas(user=None, api=None, container=None):
     if request.method == 'GET':
         user_info = []

@@ -380,6 +380,19 @@ class KiteLocalAttrSigned(KiteLocalAttr):
     def _from_buffer(attrTy, data):
         return KiteLocalAttrSigned()
 
+class KiteLocalAttrGuest(KiteLocalAttr):
+    attr_ty = 0x0021
+
+    def __init__(self):
+        super(KiteLocalAttrSigned, self).__init__()
+
+    def _pack(self):
+        return b''
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return KiteLocalAttrSigned()
+
 class KiteLocalAttrManifestUrl(KiteLocalAttr):
     attr_ty = 0x0003
 
@@ -727,6 +740,9 @@ class KiteLocalApi(object):
 
                 logged_in_attr = find_attr(attrs, KiteLocalAttrSigned)
                 ret['logged_in'] = logged_in_attr is not None
+
+                guest_attr = find_attr(attrs, KiteLocalAttrGuest)
+                ret['is_guest'] = guest_attr is not None
 
                 tokens = ret['tokens'] = []
 
@@ -1082,6 +1098,10 @@ def require_logged_in(*args, **kwargs):
                     if options.get('require_password', False) and \
                        not info.get('logged_in', False):
                         return "Unauthorized", 401, [ ("WWW-Authenticate", "X-Kite-Login") ]
+
+                    if not options.get('allow_guest', False) and \
+                       info.get('is_guest', True):
+                        return "Unauthorized", 403
 
                     persona_id = info['persona_id']
 

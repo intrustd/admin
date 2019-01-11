@@ -5,6 +5,7 @@ from celery.result import AsyncResult
 from ..api import local_api, require_logged_in, make_manifest_path
 from ..permission import TokenSet, has_install_permission
 from ..app import app, redis_connection, celery
+from ..util import no_cache
 
 from ..tasks.app import install_app
 
@@ -21,6 +22,7 @@ def my_applications():
 
 @app.route('/me/applications/<appid>/status',
            methods=['GET'])
+@no_cache
 def get_application_status(appid):
     r = jsonify(_get_application_status(appid))
     r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -88,6 +90,7 @@ def _get_application_status(appid, task_id=None):
     return app_info
 
 @app.route('/me/applications/<appid>/version', methods=['GET'])
+@no_cache
 def application_version(appid=None):
     '''Returns the major, minor, and revision number of an application'''
     with local_api() as api:
@@ -106,6 +109,7 @@ def application_version(appid=None):
                              'revision': revision })
 
 @app.route('/me/applications/<appid>/manifest/current', methods=['GET'])
+@no_cache
 def application_manifset(appid=None):
     with local_api() as api:
         info = api.get_application_info(appid)
@@ -116,6 +120,7 @@ def application_manifset(appid=None):
         return jsonify(mf.to_dict())
 
 @app.route('/me/applications/<appid>/manifest/latest', methods=['GET'])
+@no_cache
 def application_latest_manifest(appid=None):
     '''Redirects to the latest version of the application manifest'''
     with local_api() as api:
@@ -129,6 +134,7 @@ def application_latest_manifest(appid=None):
 
 @app.route('/me/applications/<appid>',
            methods=['GET', 'PUT'])
+@no_cache
 def application(appid=None):
     '''Returns information about the given application, or requests that a
     new installation be started
