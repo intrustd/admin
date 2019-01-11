@@ -75,6 +75,49 @@ class Apps extends React.Component {
     }
 }
 
+class DiskTile extends React.Component {
+    render() {
+        return E('figure', { className: 'disk-tile' },
+                 E('img', { className: 'disk-tile-image', src: 'https://openclipart.org/download/34537/drive-harddisk.svg' }),
+                 E('caption', null, this.props.info.name))
+    }
+}
+
+class Disks extends React.Component {
+    constructor () {
+        super()
+
+        this.state = { disks: null }
+    }
+
+    componentDidMount() {
+        fetch('kite+app://admin.flywithkite.com/storage/disks', {cache: 'no-store'})
+            .then((r) => {
+                if ( r.status == 200 )
+                    return r.json().then((disks) => this.setState({error: null, disks}))
+                else {
+                    this.setState({ error: `Invalid status: ${r.status}` })
+                }
+            }, (e) => { this.setState({ error: 'Error fetching disks' }) })
+    }
+
+    render() {
+        console.log("Disk info is ", this.state.disks)
+        var disks = E(KiteLoadingIndicator, { key: 'loading' })
+
+        if ( this.state.error ) {
+            disks = E('div', null, this.state.error)
+        } else if ( this.state.disks ) {
+            disks = this.state.disks.map((disk) => E(DiskTile, { key: disk.name, info: disk }))
+        }
+
+        return E('section', { className: 'container disks-container'},
+                 E('header', null,
+                   E('h2', null, 'Storage Devices')),
+                 disks)
+    }
+}
+
 class UserTile extends React.Component {
     render() {
         return E('div', {className: 'user-tile'},
@@ -118,7 +161,7 @@ class Users extends React.Component {
                       E(KiteLoadingIndicator, { key: 'loading' }))
 
         if ( this.state.error ) {
-            users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0}}, E('div', null, "Error"))
+            users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0}}, E('div', null, this.state.error))
         } else if ( this.state.users !== null ) {
             users = this.state.users.map(
                 (user) =>
@@ -160,7 +203,7 @@ class MainPage extends React.Component {
 
         if ( this.state.user ) {
             if ( this.state.user.persona.superuser && this.props.inAdminMode )
-                extra = [ E(Users) ]
+                extra = [ E(Users, { key: 'users' }), E(Disks, { key: 'disks' }) ]
         }
 
         return [ E(Apps), extra ]
