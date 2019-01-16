@@ -633,6 +633,8 @@ class KiteLocalApi(object):
 
             persona_id = find_attr(attrs, KiteLocalAttrPersonaId)
             if persona_id is None:
+                if ( flags & KLM_IS_LAST ) > 0:
+                    break
                 raise ValueError("No persona id in response")
 
             ret.append(persona_id.hex_str)
