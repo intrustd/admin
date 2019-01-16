@@ -6,7 +6,7 @@ from .app import app
 from . import routes
 
 @app.route('/me')
-@require_logged_in(allow_guest=True)
+@require_logged_in(allow_guest=True, allow_local_network=True)
 def me(user=None, api=None, container=None):
     container['persona'] = user
 
