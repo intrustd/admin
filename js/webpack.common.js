@@ -63,7 +63,7 @@ module.exports = {
             chunks: [ 'index'] ,
             scripts: [ "index.js" ],
             links: [ "index.css" ],
-            title: "Kite Admin"
+            title: "Intrustd Admin"
         }),
         new MiniCssExtractPlugin({
             filename: "[name].css"

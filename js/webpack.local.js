@@ -17,7 +17,7 @@ module.exports = merge(common, {
             hash: true,
             scripts: [ "login.js" ],
             links: [ "index.css" ],
-            title: "Kite Login",
+            title: "Intrustd Login",
             chunks: [ 'login' ]
         })
     ],

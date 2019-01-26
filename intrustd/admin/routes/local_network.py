@@ -47,12 +47,12 @@ def logout():
     else:
         return "Forbidden", 401
 
-class KiteInvalidSetup(Exception):
+class InvalidSetup(Exception):
     def __init__(self, msg, display_name=None):
         self.display_name = display_name
         self.message = msg
 
-@app.errorhandler(KiteInvalidSetup)
+@app.errorhandler(InvalidSetup)
 def invalid_setup(error):
     if request.referrer and request.accept_mimetypes.accept_html:
         data = { 'error': error.message }
@@ -75,13 +75,13 @@ def setup():
            'password_again' in request.form:
 
             if request.form['password'] != request.form['password_again']:
-                raise KiteInvalidSetup('Passwords do not match', display_name=request.form['displayname'])
+                raise InvalidSetup('Passwords do not match', display_name=request.form['displayname'])
 
             if len(request.form['password']) == 0:
-                raise KiteInvalidSetup('Password is blank', display_name=request.form['displayname'])
+                raise InvalidSetup('Password is blank', display_name=request.form['displayname'])
 
             if len(request.form['displayname']) == 0:
-                raise KiteInvalidSetup('Display name is blank', display_name=request.form['displayname'])
+                raise InvalidSetup('Display name is blank', display_name=request.form['displayname'])
 
             with local_api() as api:
                 # Create a new user with the superuser attribute
@@ -99,7 +99,7 @@ def setup():
                 return jsonify({ 'persona_id': persona_id })
 
         else:
-            raise KiteInvalidSetup('Missing form fields', display_name=request.form['displayname'])
+            raise InvalidSetup('Missing form fields', display_name=request.form['displayname'])
 
     else:
         return "Forbidden", 401

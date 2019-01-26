@@ -5512,12 +5512,12 @@ let
         sha512 = "j4emi03KXqJWcIeF8eIXkjMFN1Cmb8gUlDYGeBALLPo5qdyTfA9bOtl8m33lRoC+vFMkP3gl0WsDr6+gzxbbTA==";
       };
     };
-    "stork-js-git://github.com/kitecomputing/kite-js" = {
-      name = "stork-js";
-      packageName = "stork-js";
+    "intrustd-js-git://github.com/intrustd/js" = {
+      name = "intrustd";
+      packageName = "intrustd";
       version = "1.0.0";
       src = fetchgit {
-        url = "git://github.com/kitecomputing/kite-js";
+        url = "git://github.com/intrustd/js";
         rev = "205693aa8bb8692480ed1bb29c46f1cdf761b6b2";
         sha256 = "1cxv5dv0shja1b98ydii3pli21zrvcw0w579aah8nlr41csq9b64";
       };
@@ -6298,8 +6298,8 @@ let
     };
   };
   args = {
-    name = "kite-admin-app";
-    packageName = "kite-admin-app";
+    name = "intrustd-admin-app";
+    packageName = "intrustd-admin-app";
     version = "1.0.0";
     src = ./.;
     dependencies = [
@@ -7176,7 +7176,7 @@ let
           sources."string_decoder-1.1.1"
         ];
       })
-      sources."stork-js-git://github.com/kitecomputing/kite-js"
+      sources."intrustd-js-git://github.com/intrustd/js"
       (sources."stream-browserify-2.0.1" // {
         dependencies = [
           sources."isarray-1.0.0"
@@ -7368,7 +7368,7 @@ let
     ];
     buildInputs = globalBuildInputs;
     meta = {
-      description = "Kite admin app";
+      description = "Intrustd admin app";
       license = "MIT";
     };
     production = false;

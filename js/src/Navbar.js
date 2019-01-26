@@ -1,5 +1,5 @@
 import React from 'react';
-import { KiteUploadButton, KiteForm, KitePersonaButton } from 'stork-js/src/react.js';
+import { UploadButton, Form, PersonaButton } from 'intrustd/src/react.js';
 
 const E = React.createElement;
 
@@ -24,6 +24,6 @@ export default class Navbar extends React.Component {
 
                  E('div', {className: 'uk-navbar-right'},
                    E('ul', {className: 'uk-navbar-nav'},
-                     E(KitePersonaButton, {}))));
+                     E(PersonaButton, {}))));
     }
 }

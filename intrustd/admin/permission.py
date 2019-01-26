@@ -12,44 +12,44 @@ import sys
 
 from .api import local_api
 from .util import Signature
-from .errors import KitePermissionsError, KiteNoSuchAppError, \
-    KiteNoSuchAppsError, KiteNoSuchPermissionError
+from .errors import PermissionsError, NoSuchAppError, \
+    NoSuchAppsError, NoSuchPermissionError
 
-KITE_ADMIN_APP_URL='admin.flywithkite.com'
-KITE_INSTALL_APP_PERMISSION='install-apps'
-KITE_ADMIN_NUCLEAR_PERMISSION='nuclear'
-KITE_LOGIN_PERMISSION='login'
-KITE_SITE_PERMISSION='site'
-KITE_GUEST_PERMISSION='guest'
+ADMIN_APP_URL='admin.intrustd.com'
+INSTALL_APP_PERMISSION='install-apps'
+ADMIN_NUCLEAR_PERMISSION='nuclear'
+LOGIN_PERMISSION='login'
+SITE_PERMISSION='site'
+GUEST_PERMISSION='guest'
 
-KITE_TRANSFER_SUFFIX='/transfer'
-KITE_TRANSFER_ONCE_SUFFIX='/transfer_once'
+TRANSFER_SUFFIX='/transfer'
+TRANSFER_ONCE_SUFFIX='/transfer_once'
 
 def _has_admin_permission(p, container_info):
     base_perm = p.base_permission
-    return base_perm.permission in ( KITE_INSTALL_APP_PERMISSION,
-                                     KITE_ADMIN_NUCLEAR_PERMISSION,
-                                     KITE_LOGIN_PERMISSION,
-                                     KITE_SITE_PERMISSION,
-                                     KITE_GUEST_PERMISSION )
+    return base_perm.permission in ( INSTALL_APP_PERMISSION,
+                                     ADMIN_NUCLEAR_PERMISSION,
+                                     LOGIN_PERMISSION,
+                                     SITE_PERMISSION,
+                                     GUEST_PERMISSION )
 
 def get_builtin_perm(perm_name):
-    if perm_name == KITE_ADMIN_NUCLEAR_PERMISSION:
+    if perm_name == ADMIN_NUCLEAR_PERMISSION:
         return { 'needs_site': True,
                  'needs_persona': True,
                  'needs_login': True,
                  'max_ttl': 10 * 60 } # TODO make this configurable
-    elif perm_name == KITE_SITE_PERMISSION:
+    elif perm_name == SITE_PERMISSION:
         return { 'needs_site': True,
                  'needs_persona': False,
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 } # TODO make this configurable
-    elif perm_name == KITE_LOGIN_PERMISSION:
+    elif perm_name == LOGIN_PERMISSION:
         return { 'needs_site': True,
                  'needs_persona': True,
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 }
-    elif perm_name == KITE_GUEST_PERMISSION:
+    elif perm_name == GUEST_PERMISSION:
         return { 'needs_site': False,
                  'needs_persona': True,
                  'needs_login': False,
@@ -74,7 +74,7 @@ class ApplicationUrl(object):
 class PermSecurity(object):
     '''Permissions can only be assigned to tokens that meet certain criteria.
 
-    For example, kite+perm://admin.flywithkite.com/nuclear (the highest
+    For example, intrustd+perm://admin.intrustd.com/nuclear (the highest
     privilege) cannot be given to a guest or a non-site token.
 
     This class describes what kind of token is required for this permission
@@ -147,9 +147,9 @@ class Permission(object):
             except ValueError:
                 raise TypeError("%s is not a valid URL" % url)
 
-            if res.scheme != 'kite+perm':
+            if res.scheme != 'intrustd+perm':
                 if relative_to is None:
-                    raise TypeError("Expected kite+perm as permissions URL scheme")
+                    raise TypeError("Expected intrustd+perm as permissions URL scheme")
                 else:
                     self.app = relative_to
             else:
@@ -187,32 +187,32 @@ class Permission(object):
 
     @property
     def transferred(self):
-        if self.permission.endswith(KITE_TRANSFER_SUFFIX):
-            transferred = Permission(self.permission[:-len(KITE_TRANSFER_SUFFIX)], app_url=self.app)
+        if self.permission.endswith(TRANSFER_SUFFIX):
+            transferred = Permission(self.permission[:-len(TRANSFER_SUFFIX)], app_url=self.app)
             return set([transferred, self])
-        elif self.permission.endswith(KITE_TRANSFER_ONCE_SUFFIX):
-            transferred = Permission(self.permission[:-len(KITE_TRANSFER_ONCE_SUFFIX)], app_url=self.app)
+        elif self.permission.endswith(TRANSFER_ONCE_SUFFIX):
+            transferred = Permission(self.permission[:-len(TRANSFER_ONCE_SUFFIX)], app_url=self.app)
             return set([transferred])
         else:
             return set()
 
     @property
     def base_permission(self):
-        if self.permission.endswith(KITE_TRANSFER_SUFFIX):
-            return Permission(self.permission[:-len(KITE_TRANSFER_SUFFIX)], app_url=self.app).base_permission
-        elif self.permission.endswith(KITE_TRANSFER_ONCE_SUFFIX):
-            return Permission(self.permission[:-len(KITE_TRANSFER_ONCE_SUFFIX)], app_url=self.app).base_permission
+        if self.permission.endswith(TRANSFER_SUFFIX):
+            return Permission(self.permission[:-len(TRANSFER_SUFFIX)], app_url=self.app).base_permission
+        elif self.permission.endswith(TRANSFER_ONCE_SUFFIX):
+            return Permission(self.permission[:-len(TRANSFER_ONCE_SUFFIX)], app_url=self.app).base_permission
         else:
             return self
 
     @property
     def is_base(self):
-        return not self.permission.endswith(KITE_TRANSFER_SUFFIX) and \
-            not self.permission.endswith(KITE_TRANSFER_ONCE_SUFFIX)
+        return not self.permission.endswith(TRANSFER_SUFFIX) and \
+            not self.permission.endswith(TRANSFER_ONCE_SUFFIX)
 
     @property
     def canonical(self):
-        return 'kite+perm://{}/{}'.format(self.app, self.permission)
+        return 'intrustd+perm://{}/{}'.format(self.app, self.permission)
 
     @property
     def application(self):
@@ -235,7 +235,7 @@ class Permission(object):
             return self._perm_security
 
     def lookup_perm_security(self, api=None, persona_id=None):
-        '''Permission information is stored at <closure-path>/kite/perms.json
+        '''Permission information is stored at <closure-path>/intrustd/perms.json
 
         Example:
         [ { name: "name", needs_site: true/false, needs_persona: true/false },
@@ -248,7 +248,7 @@ class Permission(object):
         # Find the application closure directory
         app_info = api.get_application_info(self.application)
         if app_info is None:
-            raise KiteNoSuchAppError(self.application)
+            raise NoSuchAppError(self.application)
 
         manifest = app_info['manifest']
         closure = manifest.nix_closure
@@ -261,11 +261,11 @@ class Permission(object):
         except FileNotFoundError:
             perm = None
 
-        if perm is None and self.application == KITE_ADMIN_APP_URL:
+        if perm is None and self.application == ADMIN_APP_URL:
             perm = get_builtin_perm(self.permission)
 
         if perm is None:
-            raise KiteNoSuchPermissionError(self.canonical)
+            raise NoSuchPermissionError(self.canonical)
 
         if perm.get('dynamic', False):
             cmd = "/app/perms --lookup /{permission} {persona_flag} --application {application}".format(
@@ -280,7 +280,7 @@ class Permission(object):
             if proc.returncode == 0:
                 return PermSecurity.from_json(json.loads(stdout), i)
             else:
-                raise KiteNoSuchPermissionError(self.permission)
+                raise NoSuchPermissionError(self.permission)
         else:
             return PermSecurity.from_json(perm, i)
 
@@ -329,11 +329,11 @@ class TokenRequest(object):
         for p in self.permissions:
             try:
                 securities.append(p.perm_security(api, persona_id))
-            except KiteNoSuchAppError as e:
+            except NoSuchAppError as e:
                 missing_apps.add(e.app)
 
         if len(missing_apps) > 0:
-            raise KiteNoSuchAppsError(missing_apps)
+            raise NoSuchAppsError(missing_apps)
 
         if any(security is None for security in securities):
             return None
@@ -343,7 +343,7 @@ class TokenRequest(object):
 
         site_needed = None
         if required_security.needs_site and site_id is None and self.site is None:
-            raise KitePermissionsError.site_required()
+            raise PermissionsError.site_required()
         elif required_security.needs_site:
             site_needed = site_id
             if self.site is not None:
@@ -351,7 +351,7 @@ class TokenRequest(object):
 
         persona_needed = None
         if required_security.needs_persona and persona_id is None:
-            raise KitePermissionsError.persona_required()
+            raise PermissionsError.persona_required()
         elif required_security.needs_persona:
             persona_needed = persona_id
 
@@ -508,9 +508,9 @@ class Token(object):
         transferrable = reduce(operator.or_, (self._make_permission(p).transferred for p in tokens.all_permissions), set())
 
         if container_info.get('logged_in', False) or \
-           tokens.check_permission(Permission(KITE_ADMIN_NUCLEAR_PERMISSION, app_url=KITE_ADMIN_APP_URL)):
+           tokens.check_permission(Permission(ADMIN_NUCLEAR_PERMISSION, app_url=ADMIN_APP_URL)):
             for p in self.permissions:
-                if p.app == KITE_ADMIN_APP_URL:
+                if p.app == ADMIN_APP_URL:
                     if _has_admin_permission(p, container_info):
                         accepted.append(p)
                     else:
@@ -594,7 +594,7 @@ class Token(object):
             app_info = api.get_application_info(app)
             section = r.get_section(app_info['manifest'])
 
-            if app == KITE_ADMIN_APP_URL:
+            if app == ADMIN_APP_URL:
                 entries = _describe_admin_perms(perms)
             else:
 
@@ -702,23 +702,23 @@ class TokenDescription(object):
         return { 'sections': [section.to_json() for section in self.apps.values()] }
 
 def has_install_permission(perms):
-    return Permission(KITE_INSTALL_APP_PERMISSION, KITE_ADMIN_APP_URL) in perms or \
-        Permission(KITE_ADMIN_NUCLEAR_PERMISSION, KITE_ADMIN_APP_URL) in perms
+    return Permission(INSTALL_APP_PERMISSION, ADMIN_APP_URL) in perms or \
+        Permission(ADMIN_NUCLEAR_PERMISSION, ADMIN_APP_URL) in perms
 
 def _describe_admin_perms(ps):
     ps = set(p.permission for p in ps)
     r = []
 
-    if KITE_ADMIN_NUCLEAR_PERMISSION in ps:
+    if ADMIN_NUCLEAR_PERMISSION in ps:
         return [ { 'short': 'Administer this user' } ]
 
-    if KITE_INSTALL_APP_PERMISSION in ps:
+    if INSTALL_APP_PERMISSION in ps:
         r.append({ 'short': 'Install applications for this user' })
 
-    if KITE_LOGIN_PERMISSION in ps:
+    if LOGIN_PERMISSION in ps:
         r.append({ 'short': 'Login as this user' })
 
-    if KITE_GUEST_PERMISSION in ps:
+    if GUEST_PERMISSION in ps:
         r.append({ 'short': 'Invite others to view this user\'s data' })
 
     return r

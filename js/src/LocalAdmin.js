@@ -1,8 +1,8 @@
 import { render } from 'react-dom';
 import { createElement } from 'react';
-import { installKite } from 'stork-js'
+import { install } from 'intrustd';
 
-window.installKite({ rewrite: { 'admin.flywithkite.com': '/admin[path]' } })
+install({ rewrite: { 'admin.intrustd.com': '/admin[path]' } })
 
 var { AdminApp } = require('./Admin.js')
 

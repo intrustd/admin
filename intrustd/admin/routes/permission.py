@@ -5,7 +5,7 @@ from ipaddress import ip_address, IPv4Address
 from ..api import local_api
 from ..app import app
 from ..permission import Permission, TokenRequest, TokenSet
-from ..errors import KiteWrongType, KiteMissingKey, KitePermissionDeniedError
+from ..errors import WrongType, MissingKey, PermissionDeniedError
 
 def _validate_one_site_fingerprint(site):
     if site.startswith('SHA256:'):
@@ -37,12 +37,12 @@ def _validate_tokens(tokens):
         try:
             ttl_seconds = int(tokens['ttl'])
         except (ValueError, TypeError):
-            raise KiteWrongType(path=".ttl", expected=KiteWrongType.Number)
+            raise WrongType(path=".ttl", expected=WrongType.Number)
 
     if 'permissions' not in tokens:
-        raise KiteMissingKey(path=".", key="permissions")
+        raise MissingKey(path=".", key="permissions")
     if not isinstance(tokens['permissions'], list):
-        raise KiteWrongType(path=".permissions", expected=KiteWrongType.List)
+        raise WrongType(path=".permissions", expected=WrongType.List)
 
     permission = [Permission(p) for p in tokens['permissions']]
 
@@ -91,7 +91,7 @@ def tokens():
     with local_api() as api:
         token, result = _make_tokens(api)
         if token is None:
-            raise KitePermissionDeniedError(result.denied)
+            raise PermissionDeniedError(result.denied)
         else:
             token_string = token.save(api)
 
@@ -107,7 +107,7 @@ def tokens_preview():
 
         token, result = _make_tokens(api)
         if token is None:
-            raise KitePermissionDeniedError(result.denied)
+            raise PermissionDeniedError(result.denied)
         else:
             description = token.describe(api, cur_info.get('persona_id'))
             return jsonify(description.to_json())
@@ -153,4 +153,4 @@ def do_login():
             elif res.not_allowed:
                 abort(401)
 
-    return redirect(url_for('me', _scheme='kite+app', _external=True), code=303)
+    return redirect(url_for('me', _scheme='intrustd+app', _external=True), code=303)

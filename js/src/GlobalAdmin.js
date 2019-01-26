@@ -1,4 +1,4 @@
-import { installKite } from 'stork-js'
+import { install } from 'intrustd';
 import { PortalServer } from 'stork-js/src/Portal.js';
 import { render } from 'react-dom';
 import { createElement } from 'react';
@@ -14,15 +14,15 @@ function onLogin() {
     updateApp()
 }
 
-window.installKite({ permissions: [ 'kite+perm://admin.flywithkite.com/nuclear' ],
-                     autoLogin: true,
-                     loginHook: onLogin })
+install({ permissions: [ 'intrustd+perm://admin.intrustd.com/nuclear' ],
+          autoLogin: true,
+          loginHook: onLogin })
 
-var { AdminApp } = require('./Admin.js') // Use require to sequence this after installKite
+var { AdminApp } = require('./Admin.js') // Use require to sequence this after install
 
 
-if ( location.hash.startsWith('#kite-auth') ) {
-    window.kitePortalServer = new PortalServer()
+if ( location.hash.startsWith('#intrustd-auth') ) {
+    window.intrustdPortalServer = new PortalServer()
 } else {
     mainContainer = document.createElement('div');
     document.body.appendChild(mainContainer);

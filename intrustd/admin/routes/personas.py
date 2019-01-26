@@ -2,7 +2,7 @@ from flask import request, jsonify, abort, redirect, url_for
 
 from ..api import local_api, require_superuser
 from ..app import app
-from ..errors import KiteWrongType, KiteMissingKey
+from ..errors import WrongType, MissingKey
 from ..util import no_cache
 
 @app.route('/personas', methods=[ 'GET', 'POST' ])
@@ -25,22 +25,22 @@ def personas(user=None, api=None, container=None):
 
     elif request.method == 'POST':
         if 'display_name' not in request.json:
-            raise KiteMissingKey(path=".", key="display_name")
+            raise MissingKey(path=".", key="display_name")
 
         if 'password' not in request.json:
-            raise KiteMissingKey(path=".", key="password")
+            raise MissingKey(path=".", key="password")
 
         if not isinstance(request.json['display_name'], str):
-            raise KiteWrongType(path=".display_name", expected=KiteWrongType.String)
+            raise WrongType(path=".display_name", expected=WrongType.String)
 
         if not isinstance(request.json['password'], str):
-            raise KiteWrongType(path=".password", expected=KiteWrongType.String)
+            raise WrongType(path=".password", expected=WrongType.String)
 
         persona_id = api.create_user(displayname = request.json['display_name'],
                                      password = request.json['password'])
 
         return redirect(url_for('persona', persona_id=persona_id,
-                                _scheme='kite+app', _external=True),
+                                _scheme='intrustd+app', _external=True),
                         code=303)
 
 @app.route('/personas/<persona_id>', methods=[ 'GET' ])

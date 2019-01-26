@@ -8,7 +8,7 @@ import json
 
 from ..api import AppManifest, local_api, make_manifest_path, make_signature_path
 from ..app import celery
-from ..errors import KiteAppFetchError, KiteAppInstallationError
+from ..errors import AppFetchError, AppInstallationError
 
 logger = get_task_logger(__name__)
 
@@ -77,7 +77,7 @@ def _install_app(self, appid):
     with local_api() as api:
         try:
             api.register_application(mf_uri, progress=send_nix_progress)
-        except KiteAppFetchError as e:
+        except AppFetchError as e:
             self.update_state(state='FAILURE',
                               meta = { 'message': e.msg })
         except ValueError as e:

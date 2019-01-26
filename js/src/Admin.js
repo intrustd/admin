@@ -13,8 +13,9 @@ import { HashRouter as Router,
          Route, Switch,
          Link } from 'react-router-dom';
 import { resetLogins } from 'stork-js/src/Logins.js';
-import { KiteLoadingIndicator } from 'stork-js/src/react.js';
+import { LoadingIndicator } from 'intrustd/src/react.js';
 
+import { ADMIN_URL } from './Common';
 import Navbar from './Navbar';
 
 import { UserDialog } from './Users';
@@ -42,7 +43,7 @@ class Apps extends React.Component {
     }
 
     componentDidMount() {
-        fetch('kite+app://admin.flywithkite.com/me/applications',
+        fetch(`${ADMIN_URL}/me/applications`,
               { method: 'GET' })
             .then((r) => r.json())
             .then((apps) => { this.setState({apps}) })
@@ -52,7 +53,7 @@ class Apps extends React.Component {
     render() {
         var apps =
             E(CSSTransition, { timeout: 400, classNames: 'app-tile-message', id: 'loading' },
-              E(KiteLoadingIndicator, { key: 'loading' }))
+              E(LoadingIndicator, { key: 'loading' }))
 
         if ( this.state.apps ) {
             apps = this.state.apps.map(
@@ -91,7 +92,7 @@ class Disks extends React.Component {
     }
 
     componentDidMount() {
-        fetch('kite+app://admin.flywithkite.com/storage/disks', {cache: 'no-store'})
+        fetch(`${ADMIN_URL}/storage/disks`, {cache: 'no-store'})
             .then((r) => {
                 if ( r.status == 200 )
                     return r.json().then((disks) => this.setState({error: null, disks}))
@@ -103,7 +104,7 @@ class Disks extends React.Component {
 
     render() {
         console.log("Disk info is ", this.state.disks)
-        var disks = E(KiteLoadingIndicator, { key: 'loading' })
+        var disks = E(LoadingIndicator, { key: 'loading' })
 
         if ( this.state.error ) {
             disks = E('div', null, this.state.error)
@@ -137,7 +138,7 @@ class Users extends React.Component {
     }
 
     componentDidMount() {
-        fetch('kite+app://admin.flywithkite.com/personas',
+        fetch(`${ADMIN_URL}/personas`,
               { method: 'GET', cache: 'no-store' })
             .then((r) => r.json())
             .then((users) => { this.setState({users}) })
@@ -158,7 +159,7 @@ class Users extends React.Component {
 
     render() {
         var users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0 }},
-                      E(KiteLoadingIndicator, { key: 'loading' }))
+                      E(LoadingIndicator, { key: 'loading' }))
 
         if ( this.state.error ) {
             users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0}}, E('div', null, this.state.error))
@@ -191,7 +192,7 @@ class MainPage extends React.Component {
     }
 
     componentDidMount() {
-        fetch("kite+app://admin.flywithkite.com/me",
+        fetch(`${ADMIN_URL}/me`,
               { method: 'GET', cache: 'no-store' })
             .then((r) => r.json())
             .then((r) => this.setState({ user: r }))
@@ -218,7 +219,7 @@ export class AdminApp extends React.Component {
     }
 
     componentDidMount () {
-        fetch("kite+app://admin.flywithkite.com/me",
+        fetch(`${ADMIN_URL}/me`,
               { method: 'GET', cache: 'no-store' })
             .then((r) => {
                 if ( r.status == 403 && this.props.onUnauthorized ) {
@@ -243,7 +244,7 @@ export class AdminApp extends React.Component {
                   E('i', { className: `fa fa-fw ${this.inAdminMode ? 'fa-lock' : 'fa-unlock-alt'}` }))
 
             header = [ this.state.ourInfo.persona.superuser ? settingsButton : null,
-                       E('header', { className: 'kite-header' },
+                       E('header', { className: 'admin-header' },
 		         E('h1', {}, `Welcome ${this.state.ourInfo.persona.display_name}`),
                          E('div', null,
                            E('button', { className: 'uk-button uk-button-default',

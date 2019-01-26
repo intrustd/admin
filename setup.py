@@ -3,12 +3,12 @@ from setuptools import setup, find_packages
 from os import path
 
 setup(
-    name="kite-admin",
+    name="intrustd-admin",
     version="0.1.0",
-    description="Kite Admin App",
+    description="Intrustd Admin App",
     packages=find_packages(),
     install_requires=["Flask>=0.2", "celery", "redis"],
     entry_points={
-        'console_scripts': [ 'kite-admin=kite.admin:main' ]
+        'console_scripts': [ 'intrustd-admin=intrustd.admin:main' ]
     }
 )

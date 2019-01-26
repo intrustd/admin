@@ -16,7 +16,7 @@ import datetime
 import select
 
 from .app import app
-from .errors import KiteNotLoggedInError, KiteAppFetchError, KiteAppInstallationError
+from .errors import NotLoggedInError, AppFetchError, AppInstallationError
 
 AttrFactory = {}
 
@@ -32,17 +32,17 @@ def set_nonblocking(fd):
     flag = fcntl.fcntl(fd, fcntl.F_GETFD)
     fcntl.fcntl(fd, fcntl.F_SETFD, flag | os.O_NONBLOCK)
 
-class KiteLocalAttrClass(type):
+class LocalAttrClass(type):
     def __new__(cls, name, parents, dct):
-        return super(KiteLocalAttrClass, cls).__new__(cls, name, parents, dct)
+        return super(LocalAttrClass, cls).__new__(cls, name, parents, dct)
 
     def __init__(cls, name, bases, nmspc):
-        ret = super(KiteLocalAttrClass, cls).__init__(name, bases, nmspc)
+        ret = super(LocalAttrClass, cls).__init__(name, bases, nmspc)
         if hasattr(cls, 'attr_ty'):
             AttrFactory[cls.attr_ty] = cls
         return ret
 
-class KiteLocalAttr(object, metaclass = KiteLocalAttrClass):
+class LocalAttr(object, metaclass = LocalAttrClass):
 
     def __init__(self):
         pass
@@ -53,11 +53,11 @@ class KiteLocalAttr(object, metaclass = KiteLocalAttrClass):
 
         return struct.pack("!HH", self.attr_ty, len(d) + 4) + d + (b' ' * (aligned_len - len(d)))
 
-class KiteLocalAttrAddress(KiteLocalAttr):
+class LocalAttrAddress(LocalAttr):
     attr_ty = 0x10
 
     def __init__(self, addr):
-        super(KiteLocalAttrAddress, self).__init__()
+        super(LocalAttrAddress, self).__init__()
         self.address = addr
 
     def _pack(self):
@@ -66,12 +66,12 @@ class KiteLocalAttrAddress(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         addr = ipaddress.ip_address(data).exploded
-        return KiteLocalAttrAddress(addr)
+        return LocalAttrAddress(addr)
 
-class KiteLocalAttrResponseCode(KiteLocalAttr):
+class LocalAttrResponseCode(LocalAttr):
     attr_ty = 0x0000
     def __init__(self, code):
-        super(KiteLocalAttrResponseCode, self).__init__()
+        super(LocalAttrResponseCode, self).__init__()
         self.code = code & 0xFFFF
 
     def _pack(self):
@@ -80,7 +80,7 @@ class KiteLocalAttrResponseCode(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (code,) = struct.unpack("!H", data)
-        return KiteLocalAttrResponseCode(code)
+        return LocalAttrResponseCode(code)
 
     @property
     def success(self):
@@ -98,11 +98,11 @@ class KiteLocalAttrResponseCode(KiteLocalAttr):
     def not_found(self):
         return self.code == 7
 
-class KiteLocalAttrContainerType(KiteLocalAttr):
+class LocalAttrContainerType(LocalAttr):
     attr_ty = 0x0011
 
     def __init__(self, ty):
-        super(KiteLocalAttrContainerType, self).__init__()
+        super(LocalAttrContainerType, self).__init__()
         self.ty = ty & 0xFFFF
 
     def _pack(self):
@@ -111,7 +111,7 @@ class KiteLocalAttrContainerType(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (code,) = struct.unpack("!H", data)
-        return KiteLocalAttrContainerType(code)
+        return LocalAttrContainerType(code)
 
     @property
     def is_persona(self):
@@ -121,11 +121,11 @@ class KiteLocalAttrContainerType(KiteLocalAttr):
     def is_app_instance(self):
         return self.ty == 2
 
-class KiteLocalAttrAppUrl(KiteLocalAttr):
+class LocalAttrAppUrl(LocalAttr):
     attr_ty = 0x0002
 
     def __init__(self, url):
-        super(KiteLocalAttrAppUrl, self).__init__()
+        super(LocalAttrAppUrl, self).__init__()
         self.url = url
 
     def _pack(self):
@@ -133,13 +133,13 @@ class KiteLocalAttrAppUrl(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrAppUrl(data.decode('ascii'))
+        return LocalAttrAppUrl(data.decode('ascii'))
 
-class KiteLocalAttrPersonaDisplayName(KiteLocalAttr):
+class LocalAttrPersonaDisplayName(LocalAttr):
     attr_ty = 0x000D
 
     def __init__(self, name):
-        super(KiteLocalAttrPersonaDisplayName, self).__init__()
+        super(LocalAttrPersonaDisplayName, self).__init__()
         self.name = name
 
     def _pack(self):
@@ -147,13 +147,13 @@ class KiteLocalAttrPersonaDisplayName(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrPersonaDisplayName(data.decode('ascii'))
+        return LocalAttrPersonaDisplayName(data.decode('ascii'))
 
-class KiteLocalAttrStdout(KiteLocalAttr):
+class LocalAttrStdout(LocalAttr):
     attr_ty = 0x0018
 
     def __init__(self, ix):
-        super(KiteLocalAttrStdout, self).__init__()
+        super(LocalAttrStdout, self).__init__()
         self.ix = ix
 
     def _pack(self):
@@ -162,13 +162,13 @@ class KiteLocalAttrStdout(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (ix,) = struct.unpack("!B", data)
-        return KiteLocalAttrStdout(ix)
+        return LocalAttrStdout(ix)
 
-class KiteLocalAttrStderr(KiteLocalAttr):
+class LocalAttrStderr(LocalAttr):
     attr_ty = 0x0019
 
     def __init__(self, ix):
-        super(KiteLocalAttrStderr, self).__init__()
+        super(LocalAttrStderr, self).__init__()
         self.ix = ix
 
     def _pack(self):
@@ -177,13 +177,13 @@ class KiteLocalAttrStderr(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (ix,) = struct.unpack("!B", data)
-        return KiteLocalAttrStderr(ix)
+        return LocalAttrStderr(ix)
 
-class KiteLocalAttrStdin(KiteLocalAttr):
+class LocalAttrStdin(LocalAttr):
     attr_ty = 0x001A
 
     def __init__(self, ix):
-        super(KiteLocalAttrStdin, self).__init__()
+        super(LocalAttrStdin, self).__init__()
         self.ix = ix
 
     def _pack(self):
@@ -192,13 +192,13 @@ class KiteLocalAttrStdin(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (ix,) = struct.unpack("!B", data)
-        return KiteLocalAttrStdin(ix)
+        return LocalAttrStdin(ix)
 
-class KiteLocalAttrExitCode(KiteLocalAttr):
+class LocalAttrExitCode(LocalAttr):
     attr_ty = 0x001C
 
     def __init__(self, ec):
-        super(KiteLocalAttrExitCode, self).__init__()
+        super(LocalAttrExitCode, self).__init__()
         self.exit_code = ec
 
     def _pack(self):
@@ -207,13 +207,13 @@ class KiteLocalAttrExitCode(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (exit_code,) = struct.unpack("!i", data)
-        return KiteLocalAttrExitCode(exit_code)
+        return LocalAttrExitCode(exit_code)
 
-class KiteLocalAttrArg(KiteLocalAttr):
+class LocalAttrArg(LocalAttr):
     attr_ty = 0x0017
 
     def __init__(self, arg):
-        super(KiteLocalAttrArg, self).__init__()
+        super(LocalAttrArg, self).__init__()
         self.arg = arg
 
     def _pack(self):
@@ -221,13 +221,13 @@ class KiteLocalAttrArg(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrArg(data.decode('ascii'))
+        return LocalAttrArg(data.decode('ascii'))
 
-class KiteLocalAttrPersonaPassword(KiteLocalAttr):
+class LocalAttrPersonaPassword(LocalAttr):
     attr_ty = 0x000E
 
     def __init__(self, pw):
-        super(KiteLocalAttrPersonaPassword, self).__init__()
+        super(LocalAttrPersonaPassword, self).__init__()
         self.password = pw
 
     def _pack(self):
@@ -235,9 +235,9 @@ class KiteLocalAttrPersonaPassword(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrPersonaPassword(data.decode('ascii'))
+        return LocalAttrPersonaPassword(data.decode('ascii'))
 
-class KiteLocalAttrPersonaFlags(KiteLocalAttr):
+class LocalAttrPersonaFlags(LocalAttr):
     attr_ty = 0x001D
 
     def __init__(self, is_superuser=False, set_flags=0, unset_flags=0):
@@ -261,10 +261,10 @@ class KiteLocalAttrPersonaFlags(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         (set_flags, unset_flags,) = struct.unpack("!ll", data)
-        return KiteLocalAttrPersonaFlags(set_flags = set_flags,
+        return LocalAttrPersonaFlags(set_flags = set_flags,
                                          unset_flags = unset_flags)
 
-class KiteLocalAttrSiteId(KiteLocalAttr):
+class LocalAttrSiteId(LocalAttr):
     attr_ty = 0x0013
 
     def __init__(self, hash_type, hash_data):
@@ -292,13 +292,13 @@ class KiteLocalAttrSiteId(KiteLocalAttr):
         except ValueError:
             raise ValueError("{} is an invalid site fingerprint (type is {})".format(data[1], data[0]))
 
-        return KiteLocalAttrSiteId(data[0], data[1])
+        return LocalAttrSiteId(data[0], data[1])
 
-class KiteLocalAttrTokenId(KiteLocalAttr):
+class LocalAttrTokenId(LocalAttr):
     attr_ty = 0x0016
 
     def __init__(self, token_id):
-        super(KiteLocalAttrTokenId, self).__init__()
+        super(LocalAttrTokenId, self).__init__()
         if isinstance(token_id, str):
             self.token_id = binascii.unhexlify(token_id)
         elif isinstance(token_id, bytes):
@@ -315,7 +315,7 @@ class KiteLocalAttrTokenId(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         if len(data) == 32:
-            return KiteLocalAttrTokenId(data)
+            return LocalAttrTokenId(data)
         else:
             raise OverflowError("Expected token id of length 32, got %d" % len(data))
 
@@ -323,11 +323,11 @@ class KiteLocalAttrTokenId(KiteLocalAttr):
     def hex_str(self):
         return binascii.hexlify(self.token_id).decode('ascii')
 
-class KiteLocalAttrCredential(KiteLocalAttr):
+class LocalAttrCredential(LocalAttr):
     attr_ty = 0x0020
 
     def __init__(self, cred):
-        super(KiteLocalAttrCredential, self).__init__()
+        super(LocalAttrCredential, self).__init__()
 
         self.cred = cred
 
@@ -336,13 +336,13 @@ class KiteLocalAttrCredential(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrCredential(data.decode('ascii'))
+        return LocalAttrCredential(data.decode('ascii'))
 
-class KiteLocalAttrPersonaId(KiteLocalAttr):
+class LocalAttrPersonaId(LocalAttr):
     attr_ty = 0x0001
 
     def __init__(self, persona_id):
-        super(KiteLocalAttrPersonaId, self).__init__()
+        super(LocalAttrPersonaId, self).__init__()
         if isinstance(persona_id, str):
             self.persona_id = binascii.unhexlify(persona_id)
         elif isinstance(persona_id, bytes):
@@ -359,7 +359,7 @@ class KiteLocalAttrPersonaId(KiteLocalAttr):
     @staticmethod
     def _from_buffer(attrTy, data):
         if len(data) == 32:
-            return KiteLocalAttrPersonaId(data)
+            return LocalAttrPersonaId(data)
         else:
             raise OverflowError("Expected persona id of length 32, got %d" % len(data))
 
@@ -367,37 +367,37 @@ class KiteLocalAttrPersonaId(KiteLocalAttr):
     def hex_str(self):
         return binascii.hexlify(self.persona_id).decode('ascii')
 
-class KiteLocalAttrSigned(KiteLocalAttr):
+class LocalAttrSigned(LocalAttr):
     attr_ty = 0x0015
 
     def __init__(self):
-        super(KiteLocalAttrSigned, self).__init__()
+        super(LocalAttrSigned, self).__init__()
 
     def _pack(self):
         return b''
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrSigned()
+        return LocalAttrSigned()
 
-class KiteLocalAttrGuest(KiteLocalAttr):
+class LocalAttrGuest(LocalAttr):
     attr_ty = 0x0021
 
     def __init__(self):
-        super(KiteLocalAttrSigned, self).__init__()
+        super(LocalAttrSigned, self).__init__()
 
     def _pack(self):
         return b''
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrSigned()
+        return LocalAttrSigned()
 
-class KiteLocalAttrManifestUrl(KiteLocalAttr):
+class LocalAttrManifestUrl(LocalAttr):
     attr_ty = 0x0003
 
     def __init__(self, mf_url):
-        super(KiteLocalAttrManifestUrl, self).__init__()
+        super(LocalAttrManifestUrl, self).__init__()
         self.manifest_url = mf_url
 
     def _pack(self):
@@ -405,13 +405,13 @@ class KiteLocalAttrManifestUrl(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrManifestUrl(data.decode('ascii'))
+        return LocalAttrManifestUrl(data.decode('ascii'))
 
-class KiteLocalAttrSignatureUrl(KiteLocalAttr):
+class LocalAttrSignatureUrl(LocalAttr):
     attr_ty = 0x001F
 
     def __init__(self, mf_url):
-        super(KiteLocalAttrSignatureUrl, self).__init__()
+        super(LocalAttrSignatureUrl, self).__init__()
         self.signature_url = mf_url
 
     def _pack(self):
@@ -419,13 +419,13 @@ class KiteLocalAttrSignatureUrl(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrSignatureUrl(data.decode('ascii'))
+        return LocalAttrSignatureUrl(data.decode('ascii'))
 
-class KiteLocalAttrManifest(KiteLocalAttr):
+class LocalAttrManifest(LocalAttr):
     attr_ty = 0x0014
 
     def __init__(self, mf_name):
-        super(KiteLocalAttrManifest, self).__init__()
+        super(LocalAttrManifest, self).__init__()
         self.manifest = mf_name
 
     def _pack(self):
@@ -433,13 +433,13 @@ class KiteLocalAttrManifest(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrManifest(data.decode('ascii'))
+        return LocalAttrManifest(data.decode('ascii'))
 
-class KiteLocalAttrSystemType(KiteLocalAttr):
+class LocalAttrSystemType(LocalAttr):
     attr_ty = 0x001E
 
     def __init__(self, ty):
-        super(KiteLocalAttrSystemType, self).__init__()
+        super(LocalAttrSystemType, self).__init__()
         self.system_type = ty
 
     def _pack(self):
@@ -447,7 +447,7 @@ class KiteLocalAttrSystemType(KiteLocalAttr):
 
     @staticmethod
     def _from_buffer(attrTy, data):
-        return KiteLocalAttrSystemType(data.decode('ascii'))
+        return LocalAttrSystemType(data.decode('ascii'))
 
 class UnknownAttr(object):
     def __init__(self, ty, data):
@@ -508,29 +508,29 @@ class AppManifest(object):
 
     @property
     def nix_closure(self):
-        return self.nix_closures.get(app.config['KITE_SYSTEM_TYPE'])
+        return self.nix_closures.get(app.config['SYSTEM_TYPE'])
 
-class KiteNoPermError(Exception):
+class NoPermError(Exception):
     status_code = 401
 
     def __init__(self):
         Exception.__init__(self)
         self.payload = "The admin application has been run without admin privileges"
 
-class KiteLocalApi(object):
+class LocalApi(object):
     def __init__(self, sockpath=None):
         if sockpath is None:
-            if 'KITE_APPLIANCE_DIR' in os.environ:
-                self.appliance_dir = os.environ['KITE_APPLIANCE_DIR']
-                sockpath = os.path.join(os.environ['KITE_APPLIANCE_DIR'], 'applianced-control')
+            if 'INTRUSTD_APPLIANCE_DIR' in os.environ:
+                self.appliance_dir = os.environ['INTRUSTD_APPLIANCE_DIR']
+                sockpath = os.path.join(os.environ['INTRUSTD_APPLIANCE_DIR'], 'applianced-control')
             else:
-                raise TypeError("expected 'sockpath' argument or 'KITE_APPLIANCE_DIR' environment variable")
+                raise TypeError("expected 'sockpath' argument or 'INTRUSTD_APPLIANCE_DIR' environment variable")
 
         self.socket = socket(AF_UNIX, SOCK_SEQPACKET, 0)
         try:
             self.socket.connect(sockpath)
         except FileNotFoundError:
-            raise KiteNoPermError()
+            raise NoPermError()
 
     def _write_request(self, req_type, flags, attrs):
         hdr = struct.pack("!HH", req_type, flags)
@@ -567,7 +567,7 @@ class KiteLocalApi(object):
         return (rspTy, attrs)
 
     def _get_response_code(self, attrs):
-        response_attr = find_attr(attrs, KiteLocalAttrResponseCode)
+        response_attr = find_attr(attrs, LocalAttrResponseCode)
         if response_attr is None:
             raise ValueError("no response code available")
         return response_attr
@@ -598,7 +598,7 @@ class KiteLocalApi(object):
     def get_system_type(self):
         attrs = self._get_system_info()
 
-        host = find_attr(attrs, KiteLocalAttrSystemType)
+        host = find_attr(attrs, LocalAttrSystemType)
         if host is None:
             raise ValueError("No system type attribute in response")
 
@@ -606,16 +606,16 @@ class KiteLocalApi(object):
 
     def create_user(self, displayname=None, password=None, superuser=False):
         req = self._write_request(0x0101, 0, [
-            KiteLocalAttrPersonaDisplayName(displayname),
-            KiteLocalAttrPersonaPassword(password)
-        ] + ([ KiteLocalAttrPersonaFlags(is_superuser=True) ]
+            LocalAttrPersonaDisplayName(displayname),
+            LocalAttrPersonaPassword(password)
+        ] + ([ LocalAttrPersonaFlags(is_superuser=True) ]
              if superuser else []))
 
         self.socket.send(req)
 
         (pktTy, attrs) = self._receive_packet()
 
-        persona_id = find_attr(attrs, KiteLocalAttrPersonaId)
+        persona_id = find_attr(attrs, LocalAttrPersonaId)
         if persona_id is None:
             raise ValueError("No persona id in response")
 
@@ -631,7 +631,7 @@ class KiteLocalApi(object):
         while True:
             (pktTy, flags, attrs) = self._receive_packet_with_flags()
 
-            persona_id = find_attr(attrs, KiteLocalAttrPersonaId)
+            persona_id = find_attr(attrs, LocalAttrPersonaId)
             if persona_id is None:
                 if ( flags & KLM_IS_LAST ) > 0:
                     break
@@ -645,7 +645,7 @@ class KiteLocalApi(object):
         return ret
 
     def get_persona_info(self, persona_id):
-        req = self._write_request(0x0100, 0, [ KiteLocalAttrPersonaId(persona_id) ])
+        req = self._write_request(0x0100, 0, [ LocalAttrPersonaId(persona_id) ])
         self.socket.send(req)
 
         (pktTy, attrs) = self._receive_packet()
@@ -663,16 +663,16 @@ class KiteLocalApi(object):
                 raise ValueError("error looking up container: %d" % response_attr.code)
 
             for attr in attrs:
-                if isinstance(attr, KiteLocalAttrPersonaDisplayName):
+                if isinstance(attr, LocalAttrPersonaDisplayName):
                     persona["display_name"] = attr.name
-                elif isinstance(attr, KiteLocalAttrPersonaFlags):
+                elif isinstance(attr, LocalAttrPersonaFlags):
                     if attr.is_superuser:
                         persona["superuser"] = True
 
             return persona
 
     def get_application_info(self, app_url):
-        req = self._write_request(0x0200, 0, [ KiteLocalAttrAppUrl(app_url) ])
+        req = self._write_request(0x0200, 0, [ LocalAttrAppUrl(app_url) ])
         self.socket.send(req)
         (pktTy, attrs) = self._receive_packet()
 
@@ -685,9 +685,9 @@ class KiteLocalApi(object):
             elif not response_attr.success:
                 raise ValueError("error looking up application: %d" % response_attr.code)
 
-            is_signed = find_attr(attrs, KiteLocalAttrSigned) is not None
+            is_signed = find_attr(attrs, LocalAttrSigned) is not None
 
-            manifest_name = find_attr(attrs, KiteLocalAttrManifest)
+            manifest_name = find_attr(attrs, LocalAttrManifest)
             manifest = self._read_manifest(manifest_name.manifest)
             if manifest is None:
                 return None
@@ -707,7 +707,7 @@ class KiteLocalApi(object):
             return None
 
     def get_container_info(self, address):
-        req = self._write_request(0x0400, 0, [ KiteLocalAttrAddress(address) ])
+        req = self._write_request(0x0400, 0, [ LocalAttrAddress(address) ])
         self.socket.send(req)
         (pktTy, attrs) = self._receive_packet()
 
@@ -724,39 +724,39 @@ class KiteLocalApi(object):
             elif not success_attr.success:
                 raise ValueError("Error looking up container: %d" % success_attr.code)
 
-            ty_attr = find_attr(attrs, KiteLocalAttrContainerType)
+            ty_attr = find_attr(attrs, LocalAttrContainerType)
             if ty_attr is None:
                 raise ValueError("no container type in response")
 
             if ty_attr.is_persona:
-                persona_id_attr = find_attr(attrs, KiteLocalAttrPersonaId)
+                persona_id_attr = find_attr(attrs, LocalAttrPersonaId)
                 if persona_id_attr is None:
                     raise ValueError("no persona id in response")
 
                 ret = { 'type': 'persona',
                         'persona_id': persona_id_attr.hex_str }
 
-                site_id_attr = find_attr(attrs, KiteLocalAttrSiteId)
+                site_id_attr = find_attr(attrs, LocalAttrSiteId)
                 if site_id_attr is not None:
                     ret['site_id'] = site_id_attr.canonical
 
-                logged_in_attr = find_attr(attrs, KiteLocalAttrSigned)
+                logged_in_attr = find_attr(attrs, LocalAttrSigned)
                 ret['logged_in'] = logged_in_attr is not None
 
-                guest_attr = find_attr(attrs, KiteLocalAttrGuest)
+                guest_attr = find_attr(attrs, LocalAttrGuest)
                 ret['is_guest'] = guest_attr is not None
 
                 tokens = ret['tokens'] = []
 
                 for attr in attrs:
-                    if isinstance(attr, KiteLocalAttrTokenId):
+                    if isinstance(attr, LocalAttrTokenId):
                         tokens.append(attr.hex_str)
 
                 return ret
             elif ty_attr.is_app_instance:
-                persona_id_attr = find_attr(attrs, KiteLocalAttrPersonaId)
+                persona_id_attr = find_attr(attrs, LocalAttrPersonaId)
 
-                app_url_attr = find_attr(attrs, KiteLocalAttrAppUrl)
+                app_url_attr = find_attr(attrs, LocalAttrAppUrl)
                 if app_url_attr is None:
                     raise ValueError("no app url in response")
 
@@ -771,9 +771,9 @@ class KiteLocalApi(object):
             return None
 
     def update_container(self, address, credential=None):
-        attrs = [ KiteLocalAttrAddress(address) ]
+        attrs = [ LocalAttrAddress(address) ]
         if credential is not None:
-            attrs.append(KiteLocalAttrCredential(credential))
+            attrs.append(LocalAttrCredential(credential))
 
         req = self._write_request(0x0403, 0, attrs)
         self.socket.send(req)
@@ -844,19 +844,19 @@ class KiteLocalApi(object):
         try:
             ipaddress.ip_address(ip_or_app_name)
 
-            attrs.append(KiteLocalAttrAddress(ip_or_app_name))
+            attrs.append(LocalAttrAddress(ip_or_app_name))
         except ValueError:
             res = urlparse(ip_or_app_name)
 
-            if res.scheme == 'kite+app':
-                attrs += [ KiteLocalAttrAppUrl(res.hostname) ]
+            if res.scheme == 'intrustd+app':
+                attrs += [ LocalAttrAppUrl(res.hostname) ]
             elif res.scheme == '':
-                attrs += [ KiteLocalAttrAppUrl(ip_or_app_name) ]
+                attrs += [ LocalAttrAppUrl(ip_or_app_name) ]
             else:
-                raise ValueError("Expected kite+app as url scheme, got {}".format(res.scheme))
+                raise ValueError("Expected intrustd+app as url scheme, got {}".format(res.scheme))
 
             if persona is not None:
-                attrs.append(KiteLocalAttrPersonaId(persona))
+                attrs.append(LocalAttrPersonaId(persona))
 
         if not isinstance(cmd, Sequence):
             cmd = [ cmd ]
@@ -865,7 +865,7 @@ class KiteLocalApi(object):
             cmd = [ cmd ]
 
         for a in cmd:
-            attrs.append(KiteLocalAttrArg(a))
+            attrs.append(LocalAttrArg(a))
 
         if stdin == self.PIPE:
             rfd_in, wfd_in = os.pipe()
@@ -873,11 +873,11 @@ class KiteLocalApi(object):
             stdin = wfd_in
             set_nonblocking(stdin)
 
-            attrs.append(KiteLocalAttrStdin(len(fds)))
+            attrs.append(LocalAttrStdin(len(fds)))
             fds.append(rfd_in)
             close_fds.extend([wfd_in, rfd_in])
         elif hasattr(stdin, 'fileno') and isinstance(stdin.fileno, Callable):
-            attrs.append(KiteLocalAttrStdin(len(fds)))
+            attrs.append(LocalAttrStdin(len(fds)))
             fds.append(stdin.fileno())
             stdin = None
         elif stdin is not None:
@@ -893,12 +893,12 @@ class KiteLocalApi(object):
             stdout = rfd_out
             set_nonblocking(stdout)
 
-            attrs.append(KiteLocalAttrStdout(len(fds)))
+            attrs.append(LocalAttrStdout(len(fds)))
             stdout_fileno = len(fds)
             fds.append(wfd_out)
             close_fds.extend([wfd_out, rfd_out])
         elif hasattr(stdout, 'fileno') and isinstance(stdout.fileno, Callable):
-            attrs.append(KiteLocalAttrStdout(len(fds)))
+            attrs.append(LocalAttrStdout(len(fds)))
             stdout_fileno = len(fds)
             fds.append(stdout_fileno)
             stdout = None
@@ -915,11 +915,11 @@ class KiteLocalApi(object):
             stderr = rfd_err
             set_nonblocking(stderr)
 
-            attrs.append(KiteLocalAttrStderr(len(fds)))
+            attrs.append(LocalAttrStderr(len(fds)))
             fds.append(wfd_err)
             close_fds.extend([wfd_err, rfd_err])
         elif hasattr(stderr, 'fileno') and isinstance(stderr.fileno, Callable):
-            attrs.append(KiteLocalAttrStderr(len(fds)))
+            attrs.append(LocalAttrStderr(len(fds)))
             fds.append(stderr.fileno())
 
             stderr = None
@@ -929,7 +929,7 @@ class KiteLocalApi(object):
 
             stderr = None
 
-            attrs.append(KiteLocalAttrStderr(stdout_filenO))
+            attrs.append(LocalAttrStderr(stdout_filenO))
 
         req = self._write_request(0x0405, 0, attrs)
 
@@ -944,12 +944,12 @@ class KiteLocalApi(object):
     def _run_in_app_complete(self):
         (pktTy, attrs) = self._receive_packet()
 
-        response_attr = find_attr(attrs, KiteLocalAttrResponseCode)
+        response_attr = find_attr(attrs, LocalAttrResponseCode)
         if response_attr is None:
             return 'internal-error', -1
 
         elif response_attr.success:
-            exit_code_attr = find_attr(attrs, KiteLocalAttrExitCode)
+            exit_code_attr = find_attr(attrs, LocalAttrExitCode)
             if exit_code_attr is None:
                 return 'missing-code', -1
             else:
@@ -966,16 +966,16 @@ class KiteLocalApi(object):
 
         if progress is not None:
             rfd, wfd = os.pipe()
-            progress_attr = [ KiteLocalAttrStdout(0) ]
+            progress_attr = [ LocalAttrStdout(0) ]
             progress_fds = [ wfd ]
 
         if signature_path is not None and signature_path != self.INFER_SIGN:
-            sign_attr = [ KiteLocalAttrSignatureUrl(signature_path) ]
+            sign_attr = [ LocalAttrSignatureUrl(signature_path) ]
         elif signature_path is None:
-            sign_attr = [ KiteLocalAttrSignatureUrl("") ]
+            sign_attr = [ LocalAttrSignatureUrl("") ]
 
         req = self._write_request(0x0201, 0,
-                                  [ KiteLocalAttrManifestUrl(manifest_path) ] +
+                                  [ LocalAttrManifestUrl(manifest_path) ] +
                                   sign_attr +
                                   progress_attr)
 
@@ -1012,7 +1012,7 @@ class KiteLocalApi(object):
                                 (complete, _, rest) = line.partition(' ')
                                 (total, _, msg) = rest.partition(' ')
                                 if complete == 'error':
-                                    raise KiteAppInstallationError(rest)
+                                    raise AppInstallationError(rest)
                                 progress(msg, int(complete), int(total))
             finally:
                 os.close(rfd)
@@ -1020,7 +1020,7 @@ class KiteLocalApi(object):
         (pktTy, attrs) = self._receive_packet()
 
         if error is not None:
-            raise KiteAppFetchError(error)
+            raise AppFetchError(error)
 
         response_attr = self._get_response_code(attrs)
         if not response_attr.success:
@@ -1035,14 +1035,14 @@ class KiteLocalApi(object):
 
 @contextmanager
 def local_api():
-    r = KiteLocalApi()
+    r = LocalApi()
     try:
         yield r
     finally:
         r.close()
 
 def request_source():
-    return request.headers.get('X-Kite-Admin-Source', 'kite-proxy')
+    return request.headers.get('X-Intrustd-Admin-Source', 'intrustd-proxy')
 
 def is_local_network():
     return request_source() == 'local-network'
@@ -1054,12 +1054,12 @@ def get_container_info(api):
         # Check the request for a cookie, if none return unauthorized
         if 'persona_id' not in session or \
            'expiration' not in session:
-            raise KiteNotLoggedInError()
+            raise NotLoggedInError()
         else:
             if session['expiration'] < datetime.datetime.now():
                 del session['persona_id']
                 del session['expiration']
-                raise KiteNotLoggedInError()
+                raise NotLoggedInError()
 
             return { 'source': 'local-network',
                      'persona_id': session['persona_id'] }
@@ -1083,7 +1083,7 @@ def require_logged_in(*args, **kwargs):
 
                 try:
                     info = get_container_info(api)
-                except KiteNotLoggedInError as e:
+                except NotLoggedInError as e:
                     if options.get('allow_local_network', False):
                         info = None
                     else:
@@ -1099,7 +1099,7 @@ def require_logged_in(*args, **kwargs):
                 else:
                     if options.get('require_password', False) and \
                        not info.get('logged_in', False):
-                        return "Unauthorized", 401, [ ("WWW-Authenticate", "X-Kite-Login") ]
+                        return "Unauthorized", 401, [ ("WWW-Authenticate", "X-Intrustd-Login") ]
 
                     if not options.get('allow_guest', False) and \
                        info.get('is_guest', True):

@@ -2,7 +2,7 @@ from flask import jsonify, request, redirect
 
 from .app import app
 
-class KiteMissingKey(Exception):
+class MissingKey(Exception):
     def __init__(self, path=None, key=None):
         if path is None or key is None:
             raise TypeError('Both path and key arguments should be set')
@@ -15,13 +15,13 @@ class KiteMissingKey(Exception):
                  'key': self.key,
                  'path': self.path }
 
-@app.errorhandler(KiteMissingKey)
+@app.errorhandler(MissingKey)
 def missing_key(error):
     response = jsonify(error.to_dict())
     response.status_code = 400
     return response
 
-class KiteWrongType(Exception):
+class WrongType(Exception):
     Number = 'number'
     String = 'string'
     List = 'array'
@@ -40,79 +40,79 @@ class KiteWrongType(Exception):
                  'path': self.path,
                  'expected': self.expected }
 
-@app.errorhandler(KiteWrongType)
+@app.errorhandler(WrongType)
 def wrong_type(error):
     response = jsonify(error.to_dict())
     response.status_code = 400
     return response
 
-class KitePermissionDeniedError(Exception):
+class PermissionDeniedError(Exception):
     def __init__(self, perms):
         self.perms = perms
 
     def to_dict(self):
         return { 'denied': [str(p) for p in self.perms] }
 
-@app.errorhandler(KitePermissionDeniedError)
+@app.errorhandler(PermissionDeniedError)
 def perm_denied(error):
     response = jsonify(error.to_dict())
     response.status_code = 401
     return response
 
-class KitePermissionsError(Exception):
+class PermissionsError(Exception):
     def __init__(self, reason):
         self.reason = reason
 
     @staticmethod
     def site_required():
-        return KitePermissionsError("A site is required for this permissions set")
+        return PermissionsError("A site is required for this permissions set")
 
     @staticmethod
     def persona_required():
-        return KitePermissionsError("A persona is required for this permissions set")
+        return PermissionsError("A persona is required for this permissions set")
 
-@app.errorhandler(KitePermissionsError)
+@app.errorhandler(PermissionsError)
 def perm_error(error):
     response = jsonify({ "message": error.reason })
     response.status_code = 403
     return response
 
-class KiteAppFetchError(Exception):
+class AppFetchError(Exception):
     def __init__(self, msg):
         self.msg = msg
 
-class KiteNoSuchAppError(Exception):
+class NoSuchAppError(Exception):
     def __init__(self, app):
         self.app = app
 
-class KiteNoSuchAppsError(Exception):
+class NoSuchAppsError(Exception):
     def __init__(self, apps):
         self.apps = list(apps)
 
-@app.errorhandler(KiteNoSuchAppsError)
+@app.errorhandler(NoSuchAppsError)
 def no_such_app_error(error):
     response = jsonify({ 'missing-apps': error.apps })
     response.status_code = 400
     return response
 
-class KiteNoSuchPermissionError(Exception):
+class NoSuchPermissionError(Exception):
     def __init__(self, permission):
         self.permission = permission
 
-@app.errorhandler(KiteNoSuchPermissionError)
+@app.errorhandler(NoSuchPermissionError)
 def no_such_permission_error(error):
     response = jsonify({ 'missing-permission': error.permission })
     response.status_code = 400
     return response
 
-class KiteNotLoggedInError(Exception):
+class NotLoggedInError(Exception):
     pass
 
-@app.errorhandler(KiteNotLoggedInError)
+@app.errorhandler(NotLoggedInError)
 def not_logged_in_error(error):
     return 'Not Logged In', 403
 
-class KiteAppInstallationError(Exception):
+class AppInstallationError(Exception):
     def __init__(self, msg):
         self.msg = msg
 

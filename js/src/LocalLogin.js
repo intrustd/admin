@@ -6,7 +6,7 @@ import 'font-awesome/scss/font-awesome.scss';
 
 import 'stork-js/src/Authenticator.scss';
 
-import './kite-banner.svg';
+import './intrustd-banner.svg';
 
 import React from 'react';
 import ReactDom from 'react-dom';
@@ -53,7 +53,7 @@ class Logins extends React.Component {
                           fragLoc.error)
             }
 
-            return [ E('p', null, 'Welcome to Kite!'),
+            return [ E('p', null, 'Welcome to Intrustd!'),
                      E('p', null, 'You\'ll need to create a user for your new appliance'),
                      error,
                      E('form', { action: '/admin/setup?next=/login', method: 'POST' },
@@ -99,12 +99,12 @@ class Logins extends React.Component {
             }
 
             return E('form', { action: '/admin/login?next=/', method: 'POST' },
-                     E('ul', { className: 'kite-persona-list' },
+                     E('ul', { className: 'persona-list' },
                        this.state.personas.map(
                            ({persona_id, persona}) =>
                                E('li', {key: persona_id, className: ((this.state.selectedPersona == persona_id) ? 'active' : null),
                                         onClick: () => { this.setState({selectedPersona: persona_id}) } },
-                                 E('div', { className: 'kite-display-name' }, persona.display_name)))),
+                                 E('div', { className: 'display-name' }, persona.display_name)))),
                      passwordBox)
         } else if ( this.state.error ) {
             return E('div', { className: 'uk-alert-danger' },

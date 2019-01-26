@@ -3,6 +3,8 @@ import UIKit from 'uikit';
 import React from 'react';
 import ReactDom from 'react-dom';
 
+import { ADMIN_URL } from './Common';
+
 const E = React.createElement;
 
 const UserDialogState = {
@@ -53,7 +55,7 @@ export class UserDialog extends React.Component {
         this.setState({mode: UserDialogState.CREATING,
                        error: {} })
 
-        fetch('kite+app://admin.flywithkite.com/personas',
+        fetch(`${ADMIN_URL}/personas`,
               { method: 'POST',
                 body: JSON.stringify(creationInfo),
                 headers: { 'Content-type': 'application/json' }})

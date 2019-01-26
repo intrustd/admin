@@ -1,7 +1,7 @@
 {
-  "name": "kite-admin-app",
+  "name": "intrustd-admin-app",
   "version": "1.0.0",
-  "description": "Kite admin app",
+  "description": "Intrustd admin app",
   "main": "src/Admin.js",
   "scripts": {
     "build": "webpack --progress -p --config webpack.prod.js",
@@ -20,7 +20,7 @@
     "react-router": "^4.3.1",
     "react-router-dom": "^4.3.1",
     "react-transition-group": "^2.5.0",
-    "stork-js": "kitecomputing/kite-js",
+    "intrustd": "intrustd/js",
     "uikit": "^3.0.0-rc.11"
   },
   "devDependencies": {
