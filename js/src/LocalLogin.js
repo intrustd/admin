@@ -4,7 +4,7 @@ import './login.scss';
 
 import 'font-awesome/scss/font-awesome.scss';
 
-import 'stork-js/src/Authenticator.scss';
+import 'intrustd/src/Authenticator.scss';
 
 import './intrustd-banner.svg';
 

@@ -12,7 +12,7 @@ import CSSTransition from 'react-transition-group/CSSTransition';
 import { HashRouter as Router,
          Route, Switch,
          Link } from 'react-router-dom';
-import { resetLogins } from 'stork-js/src/Logins.js';
+import { resetLogins } from 'intrustd/src/Logins.js';
 import { LoadingIndicator } from 'intrustd/src/react.js';
 
 import { ADMIN_URL } from './Common';

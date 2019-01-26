@@ -1,5 +1,5 @@
 import { install } from 'intrustd';
-import { PortalServer } from 'stork-js/src/Portal.js';
+import { PortalServer } from 'intrustd/src/Portal.js';
 import { render } from 'react-dom';
 import { createElement } from 'react';
 
