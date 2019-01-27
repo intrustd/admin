@@ -1,7 +1,7 @@
 { pkgs, intrustd, pure-build, ... }:
 let python = pkgs.python3;
 
-    admin-app = python.pkgs.buildPythonPackage rec {
+    admin-app = python.pkgs.buildPythonPackage {
       pname = "intrustd-admin";
       version = "0.1.0";
 
