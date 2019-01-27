@@ -12,7 +12,7 @@
     "inputs": {
         "src": { "type": "git", "value": "git://github.com/intrustd/admin.git", "emailresponsible": true },
         "nixpkgs": { "type": "git", "value": "git://github.com/intrustd/nixpkgs kite", "emailresponsible": false },
-        "intrustd": { "type": "git", "value": "git://github.com/intrustd/daemon.git", "emailresponsible": true }
+        "intrustd": { "type": "git", "value": "git://github.com/intrustd/daemon.git", "emailresponsible": true },
         "description": { "type": "string", "value": "Kite Admin App" }
     }
 }
