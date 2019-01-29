@@ -5518,8 +5518,8 @@ let
       version = "1.0.0";
       src = fetchgit {
         url = "git://github.com/intrustd/js";
-        rev = "3ddb4ad6ec90ea76bcdf552e9af5f10d22fe05a7";
-        sha256 = "0b9vr30czi2a1bv8dlijh1yc7a7z2c06z2slnzv75crrvqprl5lr";
+        rev = "c6a23662dde15bd9c6c3348d88b51eb0a8ff8110";
+        sha256 = "1l7l953ap1jajbl8k9z5xyly92f0nihg8y2v58baal8wa6ix2wx3";
       };
     };
     "stream-browserify-2.0.1" = {
