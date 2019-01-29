@@ -6,7 +6,8 @@ from ..errors import WrongType, MissingKey
 from ..util import no_cache
 
 @app.route('/personas', methods=[ 'GET', 'POST' ])
-@require_superuser(allow_local_network=True, require_password=True)
+@require_superuser(allow_local_network=True, always_allow_local_network=True,
+                   require_password=True)
 @no_cache
 def personas(user=None, api=None, container=None):
     if request.method == 'GET':

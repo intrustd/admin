@@ -1081,8 +1081,13 @@ def require_logged_in(*args, **kwargs):
             with local_api() as api:
                 kwargs['api'] = api
 
-                info = get_container_info(api)
-
+                try:
+                    info = get_container_info(api)
+                except NotLoggedInError as e:
+                    if options.get('always_allow_local_network', False):
+                        info = None
+                    else:
+                        raise
                 if info is None:
                     if options.get('allow_local_network', False) and \
                        request_source() == 'local-network':
