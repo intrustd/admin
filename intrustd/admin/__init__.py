@@ -8,9 +8,6 @@ from . import routes
 @app.route('/me')
 @require_logged_in(allow_guest=True, allow_local_network=True)
 def me(user=None, api=None, container=None):
-    if container is None: # If we're receiving this over the local network
-        container = {}
-
     container['persona'] = user
 
     rsp = jsonify(container)
