@@ -6,34 +6,6 @@ from ..app import app
 from datetime import datetime, timedelta
 import urllib.parse
 
-@app.route('/login', methods=['POST'])
-def login():
-    if is_local_network():
-        # If this is from the local network, check the username and
-        # password fields and attempt a login, only if the user is a
-        # superuser.
-
-        if 'persona_id' in request.form and \
-           'password' in request.form:
-            with local_api() as api:
-                persona = api.get_persona_info(request.form['persona_id'])
-                if persona is None or not persona.get('superuser', False):
-                    return "Unauthorized", 403
-                else:
-                    # TODO Verify password
-
-                    session['persona_id'] = request.form['persona_id']
-                    session['expiration'] = datetime.now() + timedelta(minutes=30)
-
-                    if 'next' in request.args:
-                        return redirect(request.args['next'])
-                    else:
-                        return "Logged In", 200
-        else:
-            return "Bad Request", 400
-    else:
-        return "Forbidden", 401
-
 @app.route("/logout", methods=['POST'])
 def logout():
     if is_local_network():

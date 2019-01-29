@@ -1,8 +1,9 @@
-from flask import request, jsonify, abort, redirect, url_for
+from flask import request, jsonify, abort, redirect, url_for, session
 from collections.abc import Iterable
 from ipaddress import ip_address, IPv4Address
+from datetime import datetime, timedelta
 
-from ..api import local_api
+from ..api import local_api, is_local_network
 from ..app import app
 from ..permission import Permission, TokenRequest, TokenSet
 from ..errors import WrongType, MissingKey, PermissionDeniedError
@@ -133,24 +134,49 @@ def permissions(addr):
 
 @app.route('/login', methods=['POST'])
 def do_login():
-    if request.content_length > (16 * 1024):
-        return 'Payload too large', 413
+    if is_local_network():
+        # If this is from the local network, check the username and
+        # password fields and attempt a login, only if the user is a
+        # superuser.
 
-    with local_api() as api:
-        info = api.get_container_info(request.remote_addr)
-        if info is None:
-            abort(404)
+        if 'persona_id' in request.form and \
+           'password' in request.form:
+            with local_api() as api:
+                persona = api.get_persona_info(request.form['persona_id'])
+                if persona is None or not persona.get('superuser', False):
+                    return "Unauthorized", 403
+                else:
+                    # TODO Verify password
 
-        if not info.get('logged_in', False):
-            pw = request.get_data().decode('ascii')
+                    session['persona_id'] = request.form['persona_id']
+                    session['expiration'] = datetime.now() + timedelta(minutes=30)
 
-            res = api.update_container(request.remote_addr, credential='pwd:{}'.format(pw))
+                    if 'next' in request.args:
+                        return redirect(request.args['next'])
+                    else:
+                        return "Logged In", 200
+        else:
+            return "Bad Request", 400
 
-            if res.not_found:
+    else:
+        if request.content_length > (16 * 1024):
+            return 'Payload too large', 413
+
+        with local_api() as api:
+            info = api.get_container_info(request.remote_addr)
+            if info is None:
                 abort(404)
-            elif res.internal_error:
-                abort(500)
-            elif res.not_allowed:
-                abort(401)
 
-    return redirect(url_for('me', _scheme='intrustd+app', _external=True), code=303)
+            if not info.get('logged_in', False):
+                pw = request.get_data().decode('ascii')
+
+                res = api.update_container(request.remote_addr, credential='pwd:{}'.format(pw))
+
+                if res.not_found:
+                    abort(404)
+                elif res.internal_error:
+                    abort(500)
+                elif res.not_allowed:
+                    abort(401)
+
+            return redirect(url_for('me', _scheme='intrustd+app', _external=True), code=303)
