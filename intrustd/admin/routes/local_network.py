@@ -1,9 +1,8 @@
-from flask import request, abort, redirect, session
+from flask import request, session
 
 from ..api import local_api, is_local_network
 from ..app import app
 
-from datetime import datetime, timedelta
 import urllib.parse
 
 @app.route("/logout", methods=['POST'])
