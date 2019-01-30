@@ -1062,7 +1062,8 @@ def get_container_info(api):
                 raise NotLoggedInError()
 
             return { 'source': 'local-network',
-                     'persona_id': session['persona_id'] }
+                     'persona_id': session['persona_id'],
+                     'is_guest': False }
     else:
         return api.get_container_info(request.remote_addr)
 
