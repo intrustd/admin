@@ -1088,8 +1088,11 @@ def require_logged_in(*args, **kwargs):
                         info = None
                     else:
                         raise
+
+                is_local_network = options.get('allow_local_network', False) and \
+                    request_source() == 'local-network'
                 if info is None:
-                    if options.get('allow_local_network', False) and \
+                    if is_local_network:
                        request_source() == 'local-network':
                         kwargs['user'] = None
                         kwargs['container'] = None
@@ -1097,8 +1100,10 @@ def require_logged_in(*args, **kwargs):
 
                     return "Not found", 404
                 else:
+
                     if options.get('require_password', False) and \
-                       not info.get('logged_in', False):
+                       not info.get('logged_in', False) and \
+                       not is_local_network:
                         return "Unauthorized", 401, [ ("WWW-Authenticate", "X-Intrustd-Login") ]
 
                     if not options.get('allow_guest', False) and \
