@@ -1093,7 +1093,6 @@ def require_logged_in(*args, **kwargs):
                     request_source() == 'local-network'
                 if info is None:
                     if is_local_network:
-                       request_source() == 'local-network':
                         kwargs['user'] = None
                         kwargs['container'] = None
                         return fn(*args, **kwargs)
