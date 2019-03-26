@@ -1,3 +1,4 @@
+from flask import request
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
 from functools import reduce
@@ -45,7 +46,7 @@ def get_builtin_perm(perm_name):
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 } # TODO make this configurable
     elif perm_name == LOGIN_PERMISSION:
-        return { 'needs_site': True,
+        return { 'needs_site': False,
                  'needs_persona': True,
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 }
@@ -189,7 +190,8 @@ class Permission(object):
     def transferred(self):
         if self.permission.endswith(TRANSFER_SUFFIX):
             transferred = Permission(self.permission[:-len(TRANSFER_SUFFIX)], app_url=self.app)
-            return set([transferred, self])
+            transferred_once = Permission(transferred.permission + TRANSFER_ONCE_SUFFIX, app_url=self.app)
+            return set([transferred, transferred_once, self])
         elif self.permission.endswith(TRANSFER_ONCE_SUFFIX):
             transferred = Permission(self.permission[:-len(TRANSFER_ONCE_SUFFIX)], app_url=self.app)
             return set([transferred])
@@ -505,7 +507,7 @@ class Token(object):
 
         tokens = TokenSet(api, container_info.get('tokens', []))
         # Collect all transferrable permissions from tokens
-        transferrable = reduce(operator.or_, (self._make_permission(p).transferred for p in tokens.all_permissions), set())
+        transferrable = reduce(operator.or_, (self._make_permission(p).transferred for p in tokens.all_permissions), DEFAULT_TRANSFERRABLE)
 
         if container_info.get('logged_in', False) or \
            tokens.check_permission(Permission(ADMIN_NUCLEAR_PERMISSION, app_url=ADMIN_APP_URL)):
@@ -722,3 +724,42 @@ def _describe_admin_perms(ps):
         r.append({ 'short': 'Invite others to view this user\'s data' })
 
     return r
+
+def can_request_perms_for(requestor=None, for_ip=None, api=None):
+    if requestor is None or for_ip is None:
+        raise TypeError("Expected 'requestor' and 'for_ip' arguments")
+
+    if api is None:
+        with local_api() as api:
+            return can_request_perms_for(requestor=requestor, for_ip=for_ip, api=api)
+    else:
+        ip_info = None
+        if for_ip != request.remote_addr:
+            info = api.get_container_info(request.remote_addr)
+            if info['type'] == 'app_instance':
+                ip_info = api.get_container_info(for_ip)
+                if ip_info is None:
+                    return False
+
+                if ip_info.get('logged_in', False):
+                    return True
+
+                ip_tokens = TokenSet(api, ip_info.get('tokens', []))
+                if all(p.app != info['app_url'] for p in ip_tokens.all_permissions):
+                    return False
+
+            elif info['type'] == 'persona':
+                tokens = TokenSet(api, info.get('tokens', []))
+                # Find permission nuclear
+                if not tokens.check_permission(Permission(ADMIN_APP_URL, ADMIN_NUCLEAR_PERMISSION)):
+                    return False
+
+            else:
+                return False
+
+            return True
+        else:
+            return True
+
+DEFAULT_TRANSFERRABLE = \
+    Permission(SITE_PERMISSION + TRANSFER_SUFFIX, ADMIN_APP_URL).transferred

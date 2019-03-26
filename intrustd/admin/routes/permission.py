@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 
 from ..api import local_api, is_local_network
 from ..app import app
-from ..permission import Permission, TokenRequest, TokenSet
-from ..errors import WrongType, MissingKey, PermissionDeniedError
+from ..permission import Permission, TokenRequest, TokenSet, can_request_perms_for
+from ..errors import WrongType, MissingKey, PermissionDeniedError, PermissionsError
 
 def _validate_one_site_fingerprint(site):
     if site.startswith('SHA256:'):
@@ -55,12 +55,16 @@ def _validate_tokens(tokens):
     return TokenRequest(permission, ttl=ttl_seconds, site=site)
 
 def _make_tokens(api):
-    tokens = request.json
+    tokens = req_data = request.json
     tokens = _validate_tokens(tokens)
 
     accept_partial = 'partial' in request.args
 
-    info = api.get_container_info(request.remote_addr)
+    on_behalf_of = req_data.get('on_behalf_of', request.remote_addr)
+    if not can_request_perms_for(requestor=request.remote_addr, for_ip=on_behalf_of, api=api):
+        abort(401)
+
+    info = api.get_container_info(on_behalf_of)
     if info is None:
         abort(404)
 
@@ -86,7 +90,7 @@ def tokens():
     required with several Link: headers with rel="method"  values.
 
     The returned token will automatically have a scoping and an
-    expiry time set. Thex token will not expire any later than what's
+    expiry time set. The token will not expire any later than what's
     requested in expiry time, but it may expire sooner. Please check.
     '''
     with local_api() as api:
@@ -131,6 +135,48 @@ def permissions(addr):
 
         tokens = TokenSet(api, info.get('tokens',[]))
         return jsonify([p.canonical for p in tokens.all_permissions])
+
+@app.route('/<addr>/tokens', methods=['GET', 'POST'])
+def tokens_for(addr):
+    if addr == 'me':
+        addr = request.remote_addr
+
+    try:
+        if not isinstance(ip_address(addr), IPv4Address):
+            abort(404)
+    except ValueError:
+        abort(404)
+
+    with local_api() as api:
+        if not can_request_perms_for(requestor=request.remote_addr, for_ip=addr, api=api):
+            abort(401)
+
+        if request.method == 'GET':
+            info = api.get_container_info(addr)
+            if info is None:
+                abort(404)
+
+            return jsonify(info.get('tokens', []))
+        elif request.method == 'POST':
+            if not isinstance(request.json, list):
+                raise WrongType('.', WrongType.List)
+
+            for i, j in enumerate(request.json):
+                if not isinstance(j, str):
+                    raise WrongType('[{}]'.format(i), WrongType.String)
+
+            for t in request.json:
+                res = api.update_container(addr, credential='token:{}'.format(t))
+
+                if res.not_allowed:
+                    raise PermissionsError('Could not apply token')
+                elif res.internal_error:
+                    abort(500)
+
+            info = api.get_container_info(addr)
+            if info is None:
+                abort(500)
+            return jsonify(info.get('tokens', []))
 
 @app.route('/login', methods=['POST'])
 def do_login():
@@ -177,6 +223,8 @@ def do_login():
                 elif res.internal_error:
                     abort(500)
                 elif res.not_allowed:
-                    abort(401)
+                    raise PermissionsError('Could not update credentials')
+                elif not res.success:
+                    abort(500)
 
             return redirect(url_for('me', _scheme='intrustd+app', _external=True), code=303)

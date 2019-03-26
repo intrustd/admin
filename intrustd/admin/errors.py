@@ -5,7 +5,7 @@ from .app import app
 class MissingKey(Exception):
     def __init__(self, path=None, key=None):
         if path is None or key is None:
-            raise TypeError('Both path and key arguments should be set')
+            raise TypeErro<r('Both path and key arguments should be set')
 
         self.path = path
         self.key = key

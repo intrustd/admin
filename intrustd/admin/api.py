@@ -1100,6 +1100,16 @@ def require_logged_in(*args, **kwargs):
 
                     return "Not found", 404
                 else:
+                    if info['type'] == 'app_instance':
+                        app_perms = options.get('allow_apps', 'none')
+                        if app_perms == 'none':
+                            return 'Unauthorized', 403
+                        elif app_perms == 'any':
+                            kwargs['user'] = None
+                            kwargs['container'] = info
+                            return fn(*args, **kwargs)
+                        else:
+                            return "Internal Server Error", 500
 
                     if options.get('require_password', False) and \
                        not info.get('logged_in', False) and \
@@ -1138,7 +1148,7 @@ def require_superuser(*args, **kwargs):
             if 'user' not in kwargs:
                 return "Unauthorized", 403
             else:
-                if (kwargs['user'] is None and options.get('allow_local_network', False)) or \
+                if (kwargs['user'] is None and (options.get('allow_local_network', False) or options.get('allow_apps', 'none') != 'none')) or \
                     kwargs['user'].get('superuser', False):
                     return fn(*args, **kwargs)
                 else:

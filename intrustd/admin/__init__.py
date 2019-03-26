@@ -24,7 +24,5 @@ with local_api() as api:
     app.config['SYSTEM_TYPE'] = system_type
     print("Got system type", system_type)
 
-print("Starting intrustd admin", list(app.url_map.iter_rules()))
-
 def main(port=80):
     app.run(host='0.0.0.0', port=port)

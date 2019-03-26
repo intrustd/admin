@@ -45,7 +45,8 @@ def personas(user=None, api=None, container=None):
                         code=303)
 
 @app.route('/personas/<persona_id>', methods=[ 'GET' ])
-@require_superuser(allow_local_network=True, require_password=True)
+@require_superuser(allow_local_network=True, require_password=True,
+                   allow_apps='any')
 def persona(persona_id, user=None, api=None, container=None):
     try:
         api.get_persona_info(persona_id)
