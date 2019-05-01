@@ -736,6 +736,9 @@ def can_request_perms_for(requestor=None, for_ip=None, api=None):
         ip_info = None
         if for_ip != request.remote_addr:
             info = api.get_container_info(request.remote_addr)
+            if info is None:
+                return False
+
             if info['type'] == 'app_instance':
                 ip_info = api.get_container_info(for_ip)
                 if ip_info is None:

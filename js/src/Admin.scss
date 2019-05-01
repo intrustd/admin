@@ -25,6 +25,7 @@ section.container {
 .app-tiles {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
 }
 
 .user-tile {
@@ -43,7 +44,7 @@ section.container {
 .app-tile {
     margin: 50px;
 
-    width: 200px;
+    width: 165px;
 
     display: flex;
     align-items: center;
@@ -81,8 +82,15 @@ section.container {
 }
 
 .admin-header {
-    margin: 0 auto;
+    margin: 50px auto 0 auto;
     max-width: 800px;
+
+    .avatar-image {
+        text-align: center;
+        margin: 0 auto;
+        width: 64px;
+        display: block;
+    }
 
     h1 {
         text-align: center;
@@ -93,7 +101,7 @@ section.container {
 
         font-weight: 400;
 
-        margin: 100px 0 15px 0;
+        margin: 10px 0 15px 0;
     }
 }
 
@@ -118,3 +126,21 @@ section.container {
         color: white;
     }
 }
+
+.user-dialog-body {
+    display: flex;
+    flex-direction: row;
+}
+
+.avatar-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.avatar-form > div {
+    display: flex;
+    flex-direction: column;
+}
+
+
+

@@ -9,18 +9,20 @@
     "local-watch": "webpack --progress  --watch --config webpack.local.js",
     "local-build": "webpack --progress -p --config webpack.local.js"
   },
-  "author": "An author",
+  "author": "Travis Athougies",
   "license": "MIT",
   "dependencies": {
     "font-awesome": "^4.7.0",
     "immutable": "^3.8.2",
+    "intrustd": "../../../js",
     "query-string": "^6.2.0",
-    "react": "^16.5.2",
-    "react-dom": "^16.5.2",
+    "react": "^16.8.6",
+    "react-avatar-editor": "^11.0.7",
+    "react-dom": "^16.8.6",
+    "react-dropzone": "^10.1.4",
     "react-router": "^4.3.1",
     "react-router-dom": "^4.3.1",
     "react-transition-group": "^2.5.0",
-    "intrustd": "intrustd/js",
     "uikit": "^3.0.0-rc.11"
   },
   "devDependencies": {

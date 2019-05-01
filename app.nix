@@ -9,7 +9,7 @@ let python = pkgs.python3;
 
       doCheck = false;
 
-      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis ];
+      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis pillow ];
 
       meta = {
         homepage = "https://intrustd.com";
@@ -38,6 +38,7 @@ in
       http = "0.0.0.0:80";
 
       environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; };
+      extraOptions = "--limit-post 10485760"; # Limit post size to 10 MB
     };
 
   app.services.redis =

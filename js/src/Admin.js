@@ -13,7 +13,7 @@ import { HashRouter as Router,
          Route, Switch,
          Link } from 'react-router-dom';
 import { resetLogins } from 'intrustd/src/Logins.js';
-import { LoadingIndicator } from 'intrustd/src/react.js';
+import { LoadingIndicator, Image } from 'intrustd/src/react.js';
 
 import { ADMIN_URL } from './Common';
 import Navbar from './Navbar';
@@ -215,6 +215,7 @@ export class AdminApp extends React.Component {
     constructor() {
         super()
 
+        this.avatarRef = React.createRef()
         this.state = { ourInfo: null, inAdminMode: false }
     }
 
@@ -233,8 +234,20 @@ export class AdminApp extends React.Component {
         return this.state.inAdminMode || this.props.inAdminMode;
     }
 
+    openSettings() {
+        this.setState({ editingUser: true })
+    }
+
+    closeSettings() {
+        this.setState({ editingUser: false })
+    }
+
+    reloadAvatar() {
+        this.avatarRef.current.reload()
+    }
+
     render() {
-        var header;
+        var header, editingUser;
 
         if ( this.state.ourInfo ) {
             var settingsButton =
@@ -245,16 +258,30 @@ export class AdminApp extends React.Component {
 
             header = [ this.state.ourInfo.persona.superuser ? settingsButton : null,
                        E('header', { className: 'admin-header' },
+                         E(Image, { className: 'avatar-image',
+                                    ref: this.avatarRef,
+                                    src: `${ADMIN_URL}/personas/${this.state.ourInfo.persona_id}/avatar` }),
 		         E('h1', {}, `Welcome ${this.state.ourInfo.persona.display_name}`),
                          E('div', null,
                            E('button', { className: 'uk-button uk-button-default',
+                                         onClick: this.openSettings.bind(this) },
+                             E('i', { className: 'fa fa-fw fa-cog' }),
+                             'Settings'),
+                           E('button', { className: 'uk-button uk-button-default',
                                          onClick: () => resetLogins() },
                              'Log out'))) ];
+            if ( this.state.editingUser ) {
+                editingUser = E(UserDialog, { user: this.state.ourInfo,
+                                              onClose: this.closeSettings.bind(this),
+                                              onAvatarUpdated: this.reloadAvatar.bind(this) })
+            }
         }
 
         return E(Router, {},
                  E('div', {},
                    header,
+
+                   editingUser,
 
                    E(Route, { path: '/',
                               render: () => E(MainPage, { inAdminMode: this.inAdminMode })})))

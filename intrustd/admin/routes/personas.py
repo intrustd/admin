@@ -1,6 +1,6 @@
 from flask import request, jsonify, abort, redirect, url_for
 
-from ..api import local_api, require_superuser
+from ..api import local_api, require_superuser, require_logged_in
 from ..app import app
 from ..errors import WrongType, MissingKey
 from ..util import no_cache
@@ -44,18 +44,54 @@ def personas(user=None, api=None, container=None):
                                 _scheme='intrustd+app', _external=True),
                         code=303)
 
-@app.route('/personas/<persona_id>', methods=[ 'GET' ])
-@require_superuser(allow_local_network=True, require_password=True,
+@app.route('/personas/<persona_id>', methods=[ 'GET', 'PUT' ])
+@require_logged_in(allow_local_network=True,
+                   always_allow_local_network=True,
                    allow_apps='any')
 def persona(persona_id, user=None, api=None, container=None):
+
     try:
-        api.get_persona_info(persona_id)
+        pi = api.get_persona_info(persona_id)
     except TypeError:
         abort(404)
 
-    pi = api.get_persona_info(persona_id)
     if pi is None:
         abort(404)
 
-    return jsonify({ 'persona': pi, 'persona_id': persona_id })
+    # Container is non = local network
+    if container is None or \
+       (persona_id != container['persona_id'] and \
+        not user.get('superuser', False)):
+        abort(401)
+
+    if request.method == 'GET':
+        return jsonify({ 'persona': pi, 'persona_id': persona_id })
+
+    elif request.method == 'PUT':
+        kwargs = {}
+
+        if 'display_name' in request.json and \
+           request.json['display_name'] != pi['display_name']:
+            kwargs['display_name'] = request.json['display_name']
+
+        if 'password' in request.json:
+            kwargs['password'] = request.json['password']
+
+        def save_all():
+            if len(kwargs) == 0:
+                return jsonify(pi)
+            else:
+                abort(501) # TODO
+
+        print("Got kwargs", kwargs)
+
+        if 'password' in kwargs:
+            save_all_auth = require_logged_in(require_password=True,
+                                              allow_local_network=True,
+                                              always_allow_local_network=True)(save_all)
+
+            return save_all_auth()
+
+        else:
+            return save_all()
 

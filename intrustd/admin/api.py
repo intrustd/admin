@@ -149,6 +149,19 @@ class LocalAttrPersonaDisplayName(LocalAttr):
     def _from_buffer(attrTy, data):
         return LocalAttrPersonaDisplayName(data.decode('ascii'))
 
+class LocalAttrResetPhoto(LocalAttr):
+    attr_ty = 0x0022
+
+    def __init__(self):
+        super(LocalAttrResetPhoto, self).__init__()
+
+    def _pack(self):
+        return b''
+
+    @staticmethod
+    def _from_buffer(attrTy, data):
+        return LocalAttrResetPhoto()
+
 class LocalAttrStdout(LocalAttr):
     attr_ty = 0x0018
 
@@ -241,6 +254,7 @@ class LocalAttrPersonaFlags(LocalAttr):
     attr_ty = 0x001D
 
     def __init__(self, is_superuser=False, set_flags=0, unset_flags=0):
+        super(LocalAttrPersonaFlags, self).__init__()
         self.set_flags = set_flags
         self.unset_flags = unset_flags
 
@@ -621,6 +635,30 @@ class LocalApi(object):
 
         return persona_id.hex_str
 
+    def update_user(self, persona_id, displayname=None, password=None,
+                    bump_photo=False):
+        attrs = [ LocalAttrPersonaId(persona_id) ]
+        if displayname is not None:
+            attrs.append(LocalAttrPersonaDisplayName(displayname))
+        if password is not None:
+            attrs.append(LocalAttrPersonaPassword(password))
+        if bump_photo:
+            attrs.append(LocalAttrResetPhoto())
+
+        req = self._write_request(0x0103, 0, attrs)
+        self.socket.send(req)
+
+        (pktTy, attrs) = self._receive_packet()
+        response = self._get_response_code(attrs)
+        if response.success:
+            return
+
+        elif response.not_found:
+            raise KeyError("No such persona")
+
+        else:
+            raise TypeError("Unknown error code: {}".format(response.code))
+
     def list_personas(self):
         req = self._write_request(0x0100, 0, [ ])
 
@@ -644,7 +682,7 @@ class LocalApi(object):
 
         return ret
 
-    def get_persona_info(self, persona_id):
+    def get_persona_info(self, persona_id, include_photo=False):
         req = self._write_request(0x0100, 0, [ LocalAttrPersonaId(persona_id) ])
         self.socket.send(req)
 
@@ -654,7 +692,8 @@ class LocalApi(object):
             raise ValueError("Invalid reply received")
         else:
             persona = { "superuser": False,
-                        "display_name": None }
+                        "display_name": None,
+                        "id": persona_id }
             response_attr = self._get_response_code(attrs)
 
             if response_attr.not_found:
@@ -668,6 +707,13 @@ class LocalApi(object):
                 elif isinstance(attr, LocalAttrPersonaFlags):
                     if attr.is_superuser:
                         persona["superuser"] = True
+
+            if include_photo:
+                try:
+                    persona['photo'] = { 'mimetype': 'image/png',
+                                         'file': open(self.avatar_path(persona_id), 'rb') }
+                except FileNotFoundError:
+                    pass
 
             return persona
 
@@ -797,6 +843,12 @@ class LocalApi(object):
             self.socket.sendmsg([req], [(SOL_SOCKET,
                                          SCM_RIGHTS,
                                          array.array('i', fds))])
+
+    def persona_path(self, persona_id):
+        return os.path.join(self.appliance_dir, 'personas', persona_id)
+
+    def avatar_path(self, persona_id):
+        return os.path.join(self.persona_path(persona_id), 'avatar.png')
 
     @property
     def tokens_dir(self):

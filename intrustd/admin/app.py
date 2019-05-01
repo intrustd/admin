@@ -20,6 +20,7 @@ class TranslateAddressMiddleware(object):
         return self.app(environ, start_response)
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = os.environ.get('INTRUSTD_UPLOAD_FOLDER', '/intrustd/.tmp')
 
 # TODO use a random key
 app.secret_key = "INTRUSTDADMINDEBUGRANDOM BLAH"
