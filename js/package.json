@@ -14,7 +14,7 @@
   "dependencies": {
     "font-awesome": "^4.7.0",
     "immutable": "^3.8.2",
-    "intrustd": "../../../js",
+    "intrustd": "intrustd/js",
     "query-string": "^6.2.0",
     "react": "^16.8.6",
     "react-avatar-editor": "^11.0.7",

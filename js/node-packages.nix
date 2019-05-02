@@ -3073,11 +3073,15 @@ let
         sha512 = "mT34yGKMNceBQUoVn7iCDKDntA7SC6gycMAWzGx1z/CMCTV7b2AAtXlo3nRyHZ1FelRkQbQjprHSYGwzLtkVbw==";
       };
     };
-    "intrustd-../../../js" = {
+    "intrustd-git://github.com/intrustd/js" = {
       name = "intrustd";
       packageName = "intrustd";
       version = "1.0.0";
-      src = ../../../js;
+      src = fetchgit {
+        url = "git://github.com/intrustd/js";
+        rev = "071db410b9d7501435b71cdcff31258f38002a7c";
+        sha256 = "95b5a731ff163a0666d99a69dbcccca025fb0a8a4e282e44125f73e4a3573e02";
+      };
     };
     "invariant-2.2.4" = {
       name = "invariant";
@@ -6971,7 +6975,7 @@ let
       sources."inherits-2.0.3"
       sources."ini-1.3.5"
       sources."interpret-1.2.0"
-      sources."intrustd-../../../js"
+      sources."intrustd-git://github.com/intrustd/js"
       sources."invariant-2.2.4"
       sources."invert-kv-1.0.0"
       sources."is-accessor-descriptor-1.0.0"
