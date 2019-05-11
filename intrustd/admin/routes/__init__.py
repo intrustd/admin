@@ -4,5 +4,6 @@ from . import storage
 from . import personas
 from . import avatar
 from . import global_routes
+from . import updates
 
 from . import local_network

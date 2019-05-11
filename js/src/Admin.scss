@@ -46,12 +46,19 @@ section.container {
 
     width: 165px;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
+    text-align: center;
 
     cursor: pointer;
+
+    .app-tile-menu {
+        position: absolute;
+        z-index: 10000;
+        display: none;
+    }
+
+    &:hover .app-tile-menu {
+        display: block;
+    }
 
     img {
 	width: 128px;
@@ -84,6 +91,7 @@ section.container {
 .admin-header {
     margin: 50px auto 0 auto;
     max-width: 800px;
+    text-align: center;
 
     .avatar-image {
         text-align: center;
@@ -106,15 +114,6 @@ section.container {
 }
 
 .admin-mode-button {
-    width: 32px;
-    height: 32px;
-    box-sizing: border-box;
-    border-radius: 100%;
-
-    position: fixed;
-    top: 5px;
-    right: 5px;
-
     cursor: pointer;
 
     color: #888;
@@ -130,6 +129,10 @@ section.container {
 .user-dialog-body {
     display: flex;
     flex-direction: row;
+}
+
+.user-tile {
+    cursor: pointer;
 }
 
 .avatar-form {

@@ -16,6 +16,8 @@ let python = pkgs.python3;
         description = "Intrustd Admin App";
       };
     };
+
+  celery-bin = python.withPackages (ps: [ admin-app ]);
 in
 {
   app.meta = {
@@ -49,14 +51,24 @@ in
       databases = 2;
     };
 
-  app.services.celery =
-   let celery = python.withPackages (ps: [ admin-app ]);
-   in { name = "celery";
-        environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; };
-        startExec = ''
-          ${celery}/bin/celery -A intrustd.admin.app.celery -A intrustd.admin.app.celery worker --loglevel=INFO --concurrency=2
-        '';
-        autostart = true; };
+  app.services.celery-worker =
+   { name = "celery-worker";
+     environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; };
+     startExec = ''
+       ${celery-bin}/bin/celery -A intrustd.admin.app.celery worker --loglevel=INFO --concurrency=2
+     '';
+     autostart = true;
+   };
+
+  app.services.celery-beat =
+   { name = "celery-beat";
+     environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; };
+     startExec = ''
+        ${pkgs.coreutils}/bin/rm -f /intrustd/celerybeat.pid
+        ${celery-bin}/bin/celery -A intrustd.admin.app.celery beat -s /intrustd/celerybeat-schedule
+     '';
+     autostart = true;
+   };
 
   app.runAsAdmin = true;
   app.singleton = true;

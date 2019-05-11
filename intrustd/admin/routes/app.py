@@ -47,7 +47,6 @@ def _get_application_status(appid, task_id=None):
                          'domain': appid }
 
     if task_id is not None:
-        print("Looking up task", task_id)
         # Look up the status by getting the information from celery
         task = AsyncResult(task_id, app=install_app)
 
@@ -59,8 +58,6 @@ def _get_application_status(appid, task_id=None):
                       'RETRY': 'error',
                       'FAILURE': 'error',
                       'SUCCESS': app_info['state'] }
-
-        print("Got task state", task.state)
 
         try:
             app_info['state'] = state_map.get(task.state, 'failure')

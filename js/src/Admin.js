@@ -1,9 +1,11 @@
-import UIKit from 'uikit';
-import 'uikit/src/less/uikit.theme.less';
+import 'bootstrap';
+import 'bootstrap/scss/bootstrap.scss';
 
 import 'font-awesome/scss/font-awesome.scss';
+import 'intrustd/src/logo-small.png';
 
 import './Admin.scss';
+import './Sidebar.scss';
 
 import React from 'react';
 import ReactDom from 'react-dom';
@@ -15,66 +17,17 @@ import { HashRouter as Router,
 import { resetLogins } from 'intrustd/src/Logins.js';
 import { LoadingIndicator, Image } from 'intrustd/src/react.js';
 
-import { ADMIN_URL } from './Common';
-import Navbar from './Navbar';
+import { ADMIN_URL, fa } from './Common';
+import Nav from './Navbar';
 
-import { UserDialog } from './Users';
+import { UserDialog, Users, UsersPage } from './Users';
+import { AppsPage, Apps, AppIcon } from './Apps';
+import { UpdatesPage } from './Updates';
+import { ManagePage } from './Manage';
 
 import '../static/icons/admin.svg';
 
 const E = React.createElement;
-
-class AppIcon extends React.Component {
-    render() {
-        return E('div', {className: 'app-tile'},
-                 E('a', { href: this.props.appUrl },
-                   E('img', { src: this.props.icon })),
-                 E('div', {className: 'app-name'},
-                   E('a', {href: this.props.appUrl},
-                     this.props.name)));
-    }
-}
-
-class Apps extends React.Component {
-    constructor() {
-        super()
-
-        this.state = { }
-    }
-
-    componentDidMount() {
-        fetch(`${ADMIN_URL}/me/applications`,
-              { method: 'GET' })
-            .then((r) => r.json())
-            .then((apps) => { this.setState({apps}) })
-            .catch((error) => this.setState({error}))
-    }
-
-    render() {
-        var apps =
-            E(CSSTransition, { timeout: 400, classNames: 'app-tile-message', id: 'loading' },
-              E(LoadingIndicator, { key: 'loading' }))
-
-        if ( this.state.apps ) {
-            apps = this.state.apps.map(
-                (app) =>
-                    E(CSSTransition, { timeout: { enter: 500, exit: 100 },
-                                       classNames: 'app-tile',
-                                       id: app.canonical },
-                      E(AppIcon, { icon: app.icon,
-                                   name: app.name,
-                                   appUrl: app['app-url'],
-                                   key: app.canonical })))
-        } else if ( this.state.error ) {
-            apps = E(CSSTransition, { timeout: 400, classNames: 'app-tile-message', id: 'error' },
-                     E('div', null, this.state.error))
-        }
-
-        return E('section', { className: 'container app-tiles-container' },
-                 E('header', null, E('h2', null, 'Apps')),
-                 E(TransitionGroup, {className: 'app-tiles'}, apps))
-    }
-}
 
 class DiskTile extends React.Component {
     render() {
@@ -119,96 +72,43 @@ class Disks extends React.Component {
     }
 }
 
-class UserTile extends React.Component {
-    render() {
-        return E('div', {className: 'user-tile'},
-                 this.props.user.display_name,
-                 E('div', { className: 'user-tile-attrs'},
-                   this.props.superuser ? [ E('i', { className: 'fa fa-fw fa-lock' }) ] : null,
-                   E('i', { className: 'fa fa-fw fa-pencil' }),
-                   E('i', { className: 'fa fa-fw fa-info-circle' })));
-    }
-}
-
-class Users extends React.Component {
-    constructor () {
-        super()
-
-        this.state = { users: null }
-    }
-
-    componentDidMount() {
-        fetch(`${ADMIN_URL}/personas`,
-              { method: 'GET', cache: 'no-store' })
-            .then((r) => r.json())
-            .then((users) => { this.setState({users}) })
-            .catch((error) => { console.error("Error fetching personas", error); this.setState({error}) })
-    }
-
-    get addUserDialog() {
-        if ( this.state.addUser ) {
-            return E(UserDialog, { user: null,
-                                   onClose: () => { this.setState({addUser: false}) },
-                                   onAddUser: (persona) => {
-                                       console.log("on add user")
-                                       this.state.users.splice(0, 0, persona)
-                                       this.setState({addUser: false})
-                                   }})
-        }
-    }
-
-    render() {
-        var users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0 }},
-                      E(LoadingIndicator, { key: 'loading' }))
-
-        if ( this.state.error ) {
-            users = E(CSSTransition, {key: 'loading', classNames: 'none', timeout: { enter: 0, exit: 0}}, E('div', null, this.state.error))
-        } else if ( this.state.users !== null ) {
-            users = this.state.users.map(
-                (user) =>
-                    E(CSSTransition, {timeout: {enter: 500, exit: 100},
-                                      classNames: 'user-tile',
-                                      key: user.persona_id},
-                      E(UserTile, { user: user.persona })))
-        }
-
-        return E('section', {className: 'container users-container'},
-                 E('header', null,
-                   E('ul', { className: 'uk-iconnav'},
-                     E('li', {onClick: () => { this.setState({addUser: true}) }},
-                       E('a', null, E('i', { className: 'fa fa-plus fa-fw'})))),
-                   E('h2', null, 'Users')),
-                 this.addUserDialog,
-                 E(TransitionGroup, {className: 'users'},
-                   users))
-    }
-}
-
 class MainPage extends React.Component {
     constructor () {
         super()
-
-        this.state = { user: null }
-    }
-
-    componentDidMount() {
-        fetch(`${ADMIN_URL}/me`,
-              { method: 'GET', cache: 'no-store' })
-            .then((r) => r.json())
-            .then((r) => this.setState({ user: r }))
-            .catch((e) => console.error("error fetching info", e))
     }
 
     render () {
-        var extra = null
+        var extra = null, header
 
-        if ( this.state.user ) {
-            if ( this.state.user.persona.superuser && this.props.inAdminMode )
+        if ( this.props.user ) {
+            if ( this.props.user.persona.superuser && this.props.inAdminMode )
                 extra = [ E(Users, { key: 'users' }), E(Disks, { key: 'disks' }) ]
+
+            header = [ E('header', { className: 'admin-header' },
+                         E(Image, { className: 'avatar-image',
+                                    ref: this.avatarRef,
+                                    src: `${ADMIN_URL}/personas/${this.props.user.persona_id}/avatar` }),
+		         E('h1', {}, `Welcome ${this.props.user.persona.display_name}`),
+                           E(Link, { to: `/users/${this.props.user.persona_id}/edit`}, E('i', { className: 'fa fa-fw fa-pencil' }), ' Edit Profile')) ]
         }
 
-        return [ E(Apps), extra ]
+        return [ header, E(Apps), extra ]
     }
+}
+
+class Sidebar extends React.Component {
+    render () {
+        var mkLink = (to, ...content) => E(Link, { to, className: 'list-group-item list-group-item-action bg-light'}, ...content)
+
+        return E('div', { className: `bg-light border-right sidebar ${this.props.toggled ? 'sidebar-toggled': ''}` },
+                 E('div', { className: 'list-group list-group-flush' },
+                   mkLink('/', fa('tachometer'), ' Dashboard'),
+                   mkLink('/apps', fa('th-large'), ' Apps'),
+                   mkLink('/users', fa('users'), ' Users'),
+                   mkLink('/updates', fa('download'), ' Updates'),
+                   mkLink('/manage', fa('wrench'), ' Manage')))
+    }
+
 }
 
 export class AdminApp extends React.Component {
@@ -216,7 +116,7 @@ export class AdminApp extends React.Component {
         super()
 
         this.avatarRef = React.createRef()
-        this.state = { ourInfo: null, inAdminMode: false }
+        this.state = { ourInfo: null, inAdminMode: false, sidebarToggled: false }
     }
 
     componentDidMount () {
@@ -246,44 +146,54 @@ export class AdminApp extends React.Component {
         this.avatarRef.current.reload()
     }
 
+    toggleSidebar() {
+        this.setState({sidebarToggled: !this.state.sidebarToggled})
+    }
+
+    toggleAdminMode() {
+        this.setState({inAdminMode: !this.inAdminMode})
+    }
+
     render() {
         var header, editingUser;
 
         if ( this.state.ourInfo ) {
-            var settingsButton =
-                E('div', { className: `uk-icon-button admin-mode-button ${this.inAdminMode ? 'engaged' : ''}`,
-                           'uk-tooltip': (this.props.inAdminMode ? 'Connected over local network' : 'Connected remotely. Click to enable admin privileges'),
-                           onClick: () => { this.setState({inAdminMode: !this.state.inAdminMode}) } },
-                  E('i', { className: `fa fa-fw ${this.inAdminMode ? 'fa-lock' : 'fa-unlock-alt'}` }))
-
-            header = [ this.state.ourInfo.persona.superuser ? settingsButton : null,
-                       E('header', { className: 'admin-header' },
-                         E(Image, { className: 'avatar-image',
-                                    ref: this.avatarRef,
-                                    src: `${ADMIN_URL}/personas/${this.state.ourInfo.persona_id}/avatar` }),
-		         E('h1', {}, `Welcome ${this.state.ourInfo.persona.display_name}`),
-                         E('div', null,
-                           E('button', { className: 'uk-button uk-button-default',
-                                         onClick: this.openSettings.bind(this) },
-                             E('i', { className: 'fa fa-fw fa-cog' }),
-                             'Settings'),
-                           E('button', { className: 'uk-button uk-button-default',
-                                         onClick: () => resetLogins() },
-                             'Log out'))) ];
-            if ( this.state.editingUser ) {
-                editingUser = E(UserDialog, { user: this.state.ourInfo,
-                                              onClose: this.closeSettings.bind(this),
-                                              onAvatarUpdated: this.reloadAvatar.bind(this) })
-            }
         }
 
         return E(Router, {},
-                 E('div', {},
-                   header,
+                 E('div', null,
+                   E(Nav, { persona: this.state.ourInfo ? this.state.ourInfo.persona : null,
+                            inAdminMode: this.inAdminMode,
+                            onToggleAdminMode: this.toggleAdminMode.bind(this),
+                            onToggleSidebar: this.toggleSidebar.bind(this),
+                            onLogout: resetLogins }),
+                   E('div', { className: 'd-flex' },
+                     E(Sidebar, { toggled: this.state.sidebarToggled }),
+                     E('div', { className: 'page-content-wrapper' },
+                       E('div', { className: 'container' },
+                         header,
 
-                   editingUser,
+                         // E(Route, { path: '/me/edit',
+                         //            render: ({history}) =>
+                         //            E(UserDialog, { user: this.state.ourInfo,
+                         //                            onClose: () => history.push('/'),
+                         //                            onAvatarUpdated: this.reloadAvatar.bind(this) }) }),
 
-                   E(Route, { path: '/',
-                              render: () => E(MainPage, { inAdminMode: this.inAdminMode })})))
+                         E(Route, { path: '/', exact: true,
+                                    render: () => E(MainPage, {
+                                        inAdminMode: this.inAdminMode,
+                                        user: this.state.ourInfo
+                                    })}),
+
+                         E(Route, { path: '/apps',
+                                    render: () => E(AppsPage) }),
+                         E(Route, { path: '/users',
+                                    render: () => E(UsersPage) }),
+
+                         E(Route, { path: '/updates',
+                                    render: () => E(UpdatesPage) }),
+
+                         E(Route, { path: '/manage',
+                                    render: () => E(ManagePage) }))))))
     }
 }

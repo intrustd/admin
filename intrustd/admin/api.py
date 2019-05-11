@@ -1,4 +1,5 @@
-from socket import socket, AF_UNIX, SOCK_SEQPACKET, SOL_SOCKET, SCM_RIGHTS
+from socket import socket, AF_UNIX, SOCK_SEQPACKET, SOCK_STREAM, \
+    SOL_SOCKET, SCM_RIGHTS
 from contextlib import contextmanager
 from OpenSSL import crypto
 from flask import request, session
@@ -1310,3 +1311,79 @@ class ContainerProcess(object):
                 self.stderr = None
 
         return ( out_buf, err_buf )
+
+@contextmanager
+def system_socket():
+    s = socket(AF_UNIX, SOCK_STREAM, 0)
+    try:
+        s.connect(os.path.join(os.environ['INTRUSTD_APPLIANCE_DIR'],
+                               'system-socket'))
+        yield s
+    finally:
+        s.close()
+
+def get_latest_system_hash():
+    with system_socket() as s:
+        s.send(b'latest\n')
+        r = s.recv(4096)
+
+        try:
+            code, what  = r.decode('ascii').split(' ', 1)
+        except ValueError:
+            raise ValueError('Invalid response')
+
+        if code != '200':
+            raise ValueError('Unknown response code {}'.format(code))
+        else:
+            return what.strip()
+
+
+def get_current_system_hash():
+    with system_socket() as s:
+        s.send(b'current\n')
+        r = s.recv(4096)
+
+        try:
+            code, what = r.decode('ascii').split(' ', 1)
+        except ValueError:
+            raise ValueError('Invalid response')
+
+        if code != '200':
+            raise ValueError('Unknown response code {}'.format(code))
+        else:
+            return what.strip()
+
+def start_system_update(logfile, download_only=False):
+    with system_socket() as s:
+        s.send(b'update\n')
+        s.send(json.dumps({ 'log': logfile,
+                            'download_only': download_only }).encode('ascii'))
+        s.send(b'\n')
+
+        with s.makefile() as f:
+            for line in f:
+                res = line.split()
+                try:
+                    sts = int(res[0])
+                except ValueError:
+                    raise ValueError('Invalid status code: {} (line is {})'.format(res[0], line))
+
+                if sts == 201:
+                    if len(res) < 3:
+                        raise ValueError('Not enough fields in update line')
+
+                    try:
+                        complete = int(res[1])
+                        total = int(res[2])
+                    except ValueError:
+                        raise ValueError('Could not parse progress')
+
+                    message = ' '.join(res[3:])
+
+                    yield message, total, complete
+
+                elif sts == 200:
+                    return
+
+                else:
+                    raise ValueError('Unknown status code: {}'.format(sts))
