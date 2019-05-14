@@ -1,5 +1,3 @@
-import UIKit from 'uikit';
-//import 'uikit/src/less/uikit.less';
 import './login.scss';
 
 import 'font-awesome/scss/font-awesome.scss';
@@ -49,7 +47,7 @@ class Logins extends React.Component {
             var error
 
             if ( fragLoc.error ) {
-                error = E('div', { className: 'uk-alert uk-alert-danger' },
+                error = E('div', { className: 'alert alert-danger' },
                           fragLoc.error)
             }
 
@@ -57,44 +55,45 @@ class Logins extends React.Component {
                      E('p', null, 'You\'ll need to create a user for your new appliance'),
                      error,
                      E('form', { action: '/admin/setup?next=/login', method: 'POST' },
-                       E('div', { className: 'uk-margin' },
-                         E('div', { className: 'uk-inline uk-width-1-1' },
-                           E('span', { className: 'uk-form-icon uk-form-icon-flip' },
-                             E('i', { className: 'fa fa-user' })),
-                           E('input', { className: 'uk-input uk-form-large', required: true,
+                       E('div', { className: 'm-1' },
+                         E('div', { className: 'input-group input-group-lg' },
+                           E('div', { className: 'input-group-prepend' },
+                             E('span', { className: 'input-group-text' }, E('i', { className: 'fa fa-user' }))),
+                           E('input', { className: 'form-control', required: true,
                                         placeholder: 'Name', name: 'displayname', type: 'text', defaultValue: fragLoc.displayname }))),
 
-                       E('div', { className: 'uk-margin' },
-                         E('div', { className: 'uk-inline uk-width-1-1' },
-                           E('span', { className: 'uk-form-icon uk-form-icon-flip' },
-                             E('i', { className: 'fa fa-lock' })),
-                           E('input', { className: 'uk-input uk-form-large', required: true,
+                       E('div', { className: 'm-1' },
+                         E('div', { className: 'input-group input-group-lg' },
+                           E('div', { className: 'input-group-prepend' },
+                             E('span', { className: 'input-group-text'}, E('i', { className: 'fa fa-lock' }))),
+                           E('input', { className: 'form-control', required: true,
                                         placeholder: 'Password', name: 'password', type: 'password' }))),
 
-                       E('div', { className: 'uk-margin' },
-                         E('div', { className: 'uk-inline uk-width-1-1' },
-                           E('span', { className: 'uk-form-icon uk-form-icon-flip' },
-                             E('i', { className: 'fa fa-lock' })),
-                           E('input', { className: 'uk-input uk-form-large', required: true,
+                       E('div', { className: 'm-1' },
+                         E('div', { className: 'input-group input-group-lg' },
+                           E('div', { className: 'input-group-prepend' },
+                             E('span', { className: 'input-group-text' }, E('i', { className: 'fa fa-lock' }))),
+                           E('input', { className: 'form-control', required: true,
                                         placeholder: 'Password (again)', name: 'password_again', type: 'password' }))),
 
-                       E('div', { className: 'uk-margin' },
-                         E('button', { type: 'submit', className: 'uk-button uk-button-primary uk-button-large' }, 'Create'))) ]
+                       E('div', { className: 'm-1' },
+                         E('button', { type: 'submit', className: 'btn btn-primary' }, 'Create'))) ]
         } else if ( this.state.personas ) {
             var passwordBox
             if ( this.state.selectedPersona ) {
                 passwordBox = [
-                    E('div', { className: 'uk-margin' },
-                      E('div', { className: 'uk-inline uk-width-1-1' },
-                        E('span', { className: 'uk-form-icon uk-form-icon-flip' },
-                          E('i', {className: 'fa fa-lock'})),
-                        E('input', { className: 'uk-input uk-form-large', required: true,
+                    E('div', { className: 'm-1' },
+                      E('div', { className: 'input-group input-group-lg' },
+                        E('div', { className: 'input-group-prepend' },
+                          E('span', { className: 'input-group-text' },
+                            E('i', {className: 'fa fa-lock'}))),
+                        E('input', { className: 'form-control', required: true,
                                      placeholder: 'Password', name: 'password',
                                      type: 'password' }))),
-                    E('div', { className: 'uk-margin' },
+                    E('div', { className: 'm-1' },
                         E('input', { type: 'hidden', value: this.state.selectedPersona,
                                      name: 'persona_id' }),
-                      E('button', { type: 'submit', className: 'uk-button uk-button-primary uk-button-large' }, 'Log in'))
+                      E('button', { type: 'submit', className: 'btn btn-primary' }, 'Log in'))
                 ]
             }
 
@@ -107,7 +106,7 @@ class Logins extends React.Component {
                                  E('div', { className: 'display-name' }, persona.display_name)))),
                      passwordBox)
         } else if ( this.state.error ) {
-            return E('div', { className: 'uk-alert-danger' },
+            return E('div', { className: 'alert alert-danger' },
                      E('p', null, this.state.error))
         } else {
             return E('i', { className: 'fa fa-spin fa-3x fa-circle-o-notch' })
