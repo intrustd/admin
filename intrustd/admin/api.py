@@ -781,6 +781,7 @@ class LocalApi(object):
                     raise ValueError("no persona id in response")
 
                 ret = { 'type': 'persona',
+                        'source': 'container',
                         'persona_id': persona_id_attr.hex_str }
 
                 site_id_attr = find_attr(attrs, LocalAttrSiteId)
@@ -1114,7 +1115,8 @@ def get_container_info(api):
                 del session['expiration']
                 raise NotLoggedInError()
 
-            return { 'source': 'local-network',
+            return { 'type': 'persona',
+                     'source': 'local-network',
                      'persona_id': session['persona_id'],
                      'is_guest': False }
     else:
