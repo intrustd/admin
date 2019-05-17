@@ -1324,10 +1324,20 @@ def system_socket():
     finally:
         s.close()
 
+def receive_until_newline(s, l):
+    r = b''
+    while '\n' not in r and len(r) < l:
+        r += s.recv(4096)
+
+    if len(r) > l:
+        raise ValueError('response is too long')
+
+    return r
+
 def get_latest_system_hash():
     with system_socket() as s:
         s.send(b'latest\n')
-        r = s.recv(4096)
+        r = receive_until_newline(s, 4096)
 
         try:
             code, what  = r.decode('ascii').split(' ', 1)
@@ -1343,7 +1353,7 @@ def get_latest_system_hash():
 def get_current_system_hash():
     with system_socket() as s:
         s.send(b'current\n')
-        r = s.recv(4096)
+        r = receive_until_newline()
 
         try:
             code, what = r.decode('ascii').split(' ', 1)
