@@ -1353,7 +1353,7 @@ def get_latest_system_hash():
 def get_current_system_hash():
     with system_socket() as s:
         s.send(b'current\n')
-        r = receive_until_newline()
+        r = receive_until_newline(s, 4096)
 
         try:
             code, what = r.decode('ascii').split(' ', 1)
