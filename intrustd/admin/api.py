@@ -1326,8 +1326,8 @@ def system_socket():
 
 def receive_until_newline(s, l):
     r = b''
-    while '\n' not in r and len(r) < l:
-        r += s.recv(4096)
+    while b'\n' not in r and len(r) < l:
+        r += s.recv(l - len(r))
 
     if len(r) > l:
         raise ValueError('response is too long')
