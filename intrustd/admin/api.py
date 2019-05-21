@@ -5,6 +5,7 @@ from OpenSSL import crypto
 from flask import request, session
 from urllib.parse import urlparse
 from collections.abc import Sequence, Callable
+
 import signal
 import fcntl
 import array
@@ -1399,3 +1400,12 @@ def start_system_update(logfile, download_only=False):
 
                 else:
                     raise ValueError('Unknown status code: {}'.format(sts))
+
+@contextmanager
+def shared_lock(filename):
+    with open(filename, "r+") as f:
+        fcntl.lockf(f, fcntl.LOCK_SH)
+        try:
+            yield
+        finally:
+            fcntl.lockf(f, fcntl.LOCK_UN)

@@ -31,7 +31,6 @@ def avatar(user=None, api=None, container=None, persona_id=None):
         if user.get('id', '') != persona_id and user.get('superuser', False):
             abort(401)
 
-        print("Got put request", request.files)
         if 'photo' not in request.files:
             abort(400)
 

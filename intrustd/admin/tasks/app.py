@@ -3,10 +3,12 @@ from urllib.request import urlretrieve
 from urllib.parse import quote as urlquote
 from tempfile import mkdtemp
 from base64 import b64encode
+
 import os
 import json
 
-from ..api import AppManifest, local_api, make_manifest_path, make_signature_path
+from ..api import AppManifest, local_api, \
+    make_manifest_path, make_signature_path, shared_lock
 from ..app import celery
 from ..errors import AppFetchError, AppInstallationError
 
@@ -74,12 +76,14 @@ def _install_app(self, appid):
         p = (complete / float(total)) * 900
         update_progress(100 + p, 1000, msg)
 
-    with local_api() as api:
-        try:
-            api.register_application(mf_uri, progress=send_nix_progress)
-        except AppFetchError as e:
-            self.update_state(state='FAILURE',
-                              meta = { 'message': e.msg })
-        except ValueError as e:
-            self.update_state(state='FAILURE',
-                              meta = { 'message': 'Internal error' })
+    # Make sure no system update happens contemporaneously
+    with shared_lock("/intrustd/appliance/intrustd-system-update.lock"):
+        with local_api() as api:
+            try:
+                api.register_application(mf_uri, progress=send_nix_progress)
+            except AppFetchError as e:
+                self.update_state(state='FAILURE',
+                                  meta = { 'message': e.msg })
+            except ValueError as e:
+                self.update_state(state='FAILURE',
+                                  meta = { 'message': 'Internal error' })
