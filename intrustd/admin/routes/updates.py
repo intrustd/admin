@@ -19,6 +19,7 @@ def latest_system():
 
     elif request.method == 'PUT':
         new_system_hash = request.json
+        print("Latest system is", get_latest_system_hash(), " == ", new_system_hash)
         if get_latest_system_hash() == new_system_hash:
             with redis_connection() as redis:
                 update_task_id = str(uuid.uuid4())

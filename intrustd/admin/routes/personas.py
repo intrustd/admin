@@ -70,6 +70,9 @@ def persona(persona_id, user=None, api=None, container=None):
     elif request.method == 'PUT':
         kwargs = {}
 
+        if request.json is None:
+            abort(400)
+
         if 'display_name' in request.json and \
            request.json['display_name'] != pi['display_name']:
             kwargs['display_name'] = request.json['display_name']
