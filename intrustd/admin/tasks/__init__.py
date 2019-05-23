@@ -1,2 +1,1 @@
-from . import app
-from . import update
+from . import app, update, task

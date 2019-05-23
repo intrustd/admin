@@ -1123,6 +1123,33 @@ def get_container_info(api):
     else:
         return api.get_container_info(request.remote_addr)
 
+def require_app_instance(*args, **kwargs):
+    if len(args) == 0:
+        def _decorate(fn):
+            return require_app_instance(fn, **kwargs)
+        _decorate.__name__ = 'require_app_instance'
+        return _decorate
+    else:
+        fn = args[0]
+        options = kwargs
+
+        def _wrapped(*args, **kwargs):
+            with local_api() as api:
+                kwargs['api'] = api
+
+                info = get_container_info(api)
+                if info is None:
+                    return 'Not found', 404
+
+                if info['type'] == 'app_instance':
+                    kwargs['app_instance'] = info
+                    return fn(*args, **kwargs)
+                else:
+                    return 'Unauthorized', 403
+        _wrapped.__name__ = fn.__name__
+
+        return _wrapped
+
 def require_logged_in(*args, **kwargs):
     if len(args) == 0:
         def _decorate(fn):
@@ -1230,17 +1257,35 @@ class ContainerProcess(object):
             args.append(timeout)
         (r, _, x) = select.select(*args)
         if self.api.socket in r:
-            self.status, self.returncode = self._run_in_app_complete()
+            self.status, self.returncode = self.api._run_in_app_complete()
 
         if self.api.socket in x:
             r.status = 'internal-error'
             r.returncode = 0xDEADBEEF
 
     def poll(self):
-        return self._poll(timeout=0)
+        self._poll(timeout=0)
+        if self.returncode is not None:
+            self._close_fds()
 
     def wait(self):
-        return self._poll()
+        self._poll()
+        if self.returncode is not None:
+            self._close_fds()
+
+    def close(self):
+        self._close_fds()
+
+    def _close_fds(self):
+        if self.stdin is not None:
+            os.close(self.stdin)
+            self.stdin = None
+        if self.stderr is not None and self.stderr != self.stdout:
+            os.close(self.stderr)
+            self.stderr = None
+        if self.stdout is not None:
+            os.close(self.stdout)
+            self.stdout = None
 
     def send_signal(self):
         raise NotImplementedError()

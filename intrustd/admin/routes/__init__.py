@@ -1,9 +1,3 @@
-from . import permission
-from . import app
-from . import storage
-from . import personas
-from . import avatar
-from . import global_routes
-from . import updates
-
-from . import local_network
+from . import permission, app, storage, \
+    personas, avatar, global_routes, updates, \
+    schedule, local_network

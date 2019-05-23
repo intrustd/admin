@@ -118,3 +118,23 @@ class AppInstallationError(Exception):
 
     def __str__(self):
         return 'App install error: {}'.format(self.msg)
+
+class LimitReached(Exception):
+    def __init__(self, limit_name, max_size, actual=None):
+        self.limit_name = limit_name
+        self.max_size = max_size
+        self.actual = actual
+
+    def to_dict(self):
+        r = { 'type': 'limit-reached',
+              'limit': self.limit_name,
+              'max': self.max_size }
+        if self.actual is not None:
+            r['actual'] = r
+        return r
+
+@app.errorhandler(LimitReached)
+def limit_reached(error):
+    response = jsonify(error.to_dict())
+    response.status_code = 413
+    return response

@@ -55,7 +55,7 @@ in
    { name = "celery-worker";
      environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; };
      startExec = ''
-       ${celery-bin}/bin/celery -A intrustd.admin.app.celery worker --loglevel=INFO --concurrency=2
+       ${celery-bin}/bin/celery -A intrustd.admin.app.celery worker --loglevel=INFO --concurrency=8
      '';
      autostart = true;
    };

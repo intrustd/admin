@@ -32,7 +32,6 @@ def run_once(self, key, fn, delete_key_countdown=None):
             is_running = None
 
         if is_running is not None and is_running != self.request.id:
-            print("Is running", is_running, self.request.id)
             r = AsyncResult(is_running, app=fn)
 
             if r.state in ( 'PENDING', 'STARTED' ):
@@ -123,4 +122,3 @@ celery.add_periodic_task(
     crontab(hour="*", minute="1"), # TODO allow this to be configured
     check_for_updates,
     name='Check for system updates')
-
