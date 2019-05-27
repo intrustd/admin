@@ -3079,8 +3079,8 @@ let
       version = "1.0.0";
       src = fetchgit {
         url = "git://github.com/intrustd/js";
-        rev = "857e73009377d5012e57c05abb202017275cf7e4";
-        sha256 = "1k8aawzl64a6v26jm77h0bscncvbkaqn0hyb869jp4mm4g3n71b4";
+        rev = "33db11979fca24e7de6eedc08de04b185c09c157";
+        sha256 = "07k3gipfsrjgswcpmim17nlqvq2piqpsdxa4jzmn2vr8aryci8j5";
       };
     };
     "invariant-2.2.4" = {

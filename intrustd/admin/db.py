@@ -52,7 +52,7 @@ class Task(Base):
               'app': instance,
 
               'command': self.command,
-              'data': json.loads(self.data) }
+              'data': json.loads(self.data) if self.data != "" else {} }
 
         if self.started_on is not None:
             r['started'] = datetime_json(self.started_on)
@@ -70,7 +70,7 @@ class Version(Base):
 
     version = Column(Integer, primary_key=True)
 
-engine = create_engine('sqlite:///intrustd/admin.db')
+engine = create_engine('sqlite:////intrustd/admin.db')
 Session = sessionmaker(bind=engine)
 
 def do_migrate():

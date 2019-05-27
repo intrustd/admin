@@ -9,7 +9,7 @@ let python = pkgs.python3;
 
       doCheck = false;
 
-      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis pillow ];
+      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis pillow sqlalchemy ];
 
       meta = {
         homepage = "https://intrustd.com";

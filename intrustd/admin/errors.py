@@ -2,6 +2,15 @@ from flask import jsonify, request, redirect
 
 from .app import app
 
+class ExpectedJson(Exception):
+    pass
+
+@app.errorhandler(ExpectedJson)
+def expected_json(error):
+    response = jsonify({'type': 'expected-json'})
+    response.status_code = 415
+    return response
+
 class MissingKey(Exception):
     def __init__(self, path=None, key=None):
         if path is None or key is None:

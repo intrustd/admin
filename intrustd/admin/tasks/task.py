@@ -21,15 +21,23 @@ def run_scheduled_task(self):
         task.started_on = datetime.now()
         db.commit()
 
+        stderr = None
+        if os.path.exists('/intrustd'):
+            os.makedirs('/intrustd/logs', exist_ok=True)
+            stderr = open(os.path.join("/intrustd/logs/", self.request.id), "w")
 
-        c = api.run_in_app('intrustd+app://{}'.format(task.application),
-                           task.command,
-                           persona=task.persona,
-                           stdout=api.PIPE)
+        try:
+            c = api.run_in_app('intrustd+app://{}'.format(task.application),
+                               task.command,
+                               persona=task.persona,
+                               stdout=api.PIPE, stderr=stderr)
+        finally:
+            if stderr is not None:
+                stderr.close()
 
         try:
             stdout = os.fdopen(c.stdout, 'rt')
-            sts = None
+            sts = { }
             for line in stdout:
                 try:
                     d = json.loads(line)

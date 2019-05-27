@@ -7,7 +7,7 @@ import json
 from ..api import local_api, require_superuser, require_logged_in, \
     require_app_instance
 from ..app import app, redis_connection, celery
-from ..errors import WrongType, MissingKey, LimitReached
+from ..errors import WrongType, MissingKey, LimitReached, ExpectedJson
 from ..util import no_cache
 from ..db import session_scope, Task, parse_json_datetime, datetime_json
 from ..tasks.task import run_scheduled_task, start_task_if_necy
@@ -62,7 +62,7 @@ def schedule(app_instance=None, api=None):
     elif request.method == 'POST':
 
         if request.json is None:
-            abort(400)
+            raise ExpectedJson()
 
         if 'command' not in request.json:
             raise MissingKey(".", "command")
