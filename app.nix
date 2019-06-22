@@ -39,7 +39,7 @@ in
       socket = "/intrustd/admin.sock";
       http = "0.0.0.0:80";
 
-      environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; };
+      environment = { INTRUSTD_APPLIANCE_DIR = "/intrustd/appliance"; INTRUSTD_UPDATE_LOG_DIR = "/intrustd/appliance/logs/updates"; };
       extraOptions = "--limit-post 10485760"; # Limit post size to 10 MB
     };
 
