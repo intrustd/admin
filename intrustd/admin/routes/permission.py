@@ -2,10 +2,11 @@ from flask import request, jsonify, abort, redirect, url_for, session
 from collections.abc import Iterable
 from ipaddress import ip_address, IPv4Address
 from datetime import datetime, timedelta
+import sys
 
 from ..api import local_api, is_local_network
 from ..app import app
-from ..permission import Permission, TokenRequest, TokenSet, can_request_perms_for
+from ..permission import Permission, Token, TokenRequest, TokenSet, can_request_perms_for
 from ..errors import WrongType, MissingKey, PermissionDeniedError, PermissionsError
 
 def _validate_one_site_fingerprint(site):
@@ -31,7 +32,7 @@ def _validate_site_fingerprint(site):
 
 def _validate_tokens(tokens):
     if not isinstance(tokens, dict):
-        raise ValueError("Expected map for tokens")
+        raise WrongType(path=".", expected=WrongType.Dictionary)
 
     ttl_seconds = None
     if 'ttl' in tokens:
@@ -69,6 +70,7 @@ def _make_tokens(api):
         abort(404)
 
     token = tokens.tokenize(api, persona_id=info.get('persona_id'),
+                            app_url=info.get('app_url'),
                             site_id=info.get('site_id'))
     if token is None:
         abort(404)
@@ -77,9 +79,9 @@ def _make_tokens(api):
     result = token.verify_permissions(api, info, is_transfer=tokens.is_transfer)
 
     if accept_partial or result.all_accepted:
-        return token, result
+        return True, result, token
     else:
-        return None, result
+        return False, result, token
 
 @app.route('/tokens', methods=['POST'])
 def tokens():
@@ -94,9 +96,16 @@ def tokens():
     requested in expiry time, but it may expire sooner. Please check.
     '''
     with local_api() as api:
-        token, result = _make_tokens(api)
-        if token is None:
-            raise PermissionDeniedError(result.denied)
+        granted, result, token = _make_tokens(api)
+        if not granted:
+            delegation_ok = request.json.get('delegation_ok', False)
+            if delegation_ok:
+                delegation_token = token.delegate()
+                return jsonify({ 'token': delegation_token,
+                                 'expiration': token.expires.isoformat(),
+                                 'delegated': True })
+            else:
+                raise PermissionDeniedError(result.denied)
         else:
             token_string = token.save(api)
 
@@ -110,12 +119,36 @@ def tokens_preview():
         if cur_info is None:
             abort(404)
 
-        token, result = _make_tokens(api)
-        if token is None:
+        granted, result, token = _make_tokens(api)
+        if not granted:
             raise PermissionDeniedError(result.denied)
         else:
             description = token.describe(api, cur_info.get('persona_id'))
             return jsonify(description.to_json())
+
+@app.route('/tokens/delegated/<delegated_id>', methods=['GET', 'POST'])
+def delegated_token_preview(delegated_id=None):
+    token = Token.from_delegated(delegated_id)
+    if token is None:
+        abort(404)
+
+    with local_api() as api:
+        cur_info = api.get_container_info(request.remote_addr)
+        if cur_info is None:
+            abort(404)
+
+        if request.method == 'POST':
+            accept_partial = 'partial' in request.args
+
+            result = token.verify_permissions(api, cur_info)
+            if result.all_accepted or accept_partial:
+                token_string = token.save(api)
+                return jsonify({'token': token_string,
+                                'expiration': token.expires.isoformat() if token.expires is not None else None })
+            else:
+                raise PermissionDeniedError(result.denied)
+        else:
+            return jsonify(token.describe(api, cur_info.get('persona_id')). to_json())
 
 @app.route('/<addr>/permissions')
 def permissions(addr):
@@ -158,14 +191,18 @@ def tokens_for(addr):
 
             return jsonify(info.get('tokens', []))
         elif request.method == 'POST':
-            if not isinstance(request.json, list):
-                raise WrongType('.', WrongType.List)
+            req_data = request.json
+            if not isinstance(req_data, object):
+                raise WrongType('.', WrongType.Dictionary)
+            if 'tokens' not in req_data:
+                raise MissingKey('tokens', path='.')
 
-            for i, j in enumerate(request.json):
+            tokens = req_data['tokens']
+            for i, j in enumerate(tokens):
                 if not isinstance(j, str):
                     raise WrongType('[{}]'.format(i), WrongType.String)
 
-            for t in request.json:
+            for t in tokens:
                 res = api.update_container(addr, credential='token:{}'.format(t))
 
                 if res.not_allowed:

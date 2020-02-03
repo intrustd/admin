@@ -1,15 +1,17 @@
 { pkgs, intrustd, pure-build, ... }:
 let python = pkgs.python3;
 
+   redis-py = python.pkgs.callPackage ./pkgs/redis-py {};
+
     admin-app = python.pkgs.buildPythonPackage {
       pname = "intrustd-admin";
       version = "0.1.0";
 
-      src = if pure-build then ./. else ./dist/intrustd-admin-0.1.0.tar.gz;
+      src =  if pure-build then ./. else ./dist/intrustd-admin-0.1.0.tar.gz;
 
       doCheck = false;
 
-      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis pillow sqlalchemy ];
+      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis-py pillow sqlalchemy ];
 
       meta = {
         homepage = "https://intrustd.com";

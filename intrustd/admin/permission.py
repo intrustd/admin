@@ -12,7 +12,7 @@ import re
 import sys
 
 from .api import local_api
-from .util import Signature
+from .util import Signature, verify_hex_digest
 from .errors import PermissionsError, NoSuchAppError, \
     NoSuchAppsError, NoSuchPermissionError
 
@@ -22,37 +22,58 @@ ADMIN_NUCLEAR_PERMISSION='nuclear'
 LOGIN_PERMISSION='login'
 SITE_PERMISSION='site'
 GUEST_PERMISSION='guest'
+DAEMON_PERMISSION='daemon'
+INET_PERM_RE=re.compile('internet/(tcp|udp)/[0-9]+(/(ingoing|outgoing|both))?')
+
+INTRUSTD_DELEGATED_TOKENS_DIR='/intrustd/delegated'
+ # At most allow seven days for this to be approved. TODO allow customization
+MAX_DELEGATION_TIME=timedelta(days=7)
 
 TRANSFER_SUFFIX='/transfer'
 TRANSFER_ONCE_SUFFIX='/transfer_once'
 
 def _has_admin_permission(p, container_info):
     base_perm = p.base_permission
-    return base_perm.permission in ( INSTALL_APP_PERMISSION,
-                                     ADMIN_NUCLEAR_PERMISSION,
-                                     LOGIN_PERMISSION,
-                                     SITE_PERMISSION,
-                                     GUEST_PERMISSION )
+    if base_perm.permission in ( INSTALL_APP_PERMISSION,
+                                 ADMIN_NUCLEAR_PERMISSION,
+                                 LOGIN_PERMISSION,
+                                 SITE_PERMISSION,
+                                 GUEST_PERMISSION,
+                                 DAEMON_PERMISSION ):
+        return True
+    else:
+        return INET_PERM_RE.fullmatch(base_perm.permission) is not None
 
 def get_builtin_perm(perm_name):
     if perm_name == ADMIN_NUCLEAR_PERMISSION:
         return { 'needs_site': True,
                  'needs_persona': True,
+                 'needs_app': False,
                  'needs_login': True,
                  'max_ttl': 10 * 60 } # TODO make this configurable
     elif perm_name == SITE_PERMISSION:
         return { 'needs_site': True,
                  'needs_persona': False,
+                 'needs_app': False,
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 } # TODO make this configurable
-    elif perm_name == LOGIN_PERMISSION:
+    elif perm_name in LOGIN_PERMISSION:
         return { 'needs_site': False,
                  'needs_persona': True,
+                 'needs_app': False,
                  'needs_login': False,
                  'max_ttl': 24 * 60 * 60 }
     elif perm_name == GUEST_PERMISSION:
         return { 'needs_site': False,
                  'needs_persona': True,
+                 'needs_app': False,
+                 'needs_login': False,
+                 'max_ttl': None }
+    elif perm_name == DAEMON_PERMISSION or \
+         INET_PERM_RE.fullmatch(perm_name) is not None:
+        return { 'needs_site': False,
+                 'needs_persona': True,
+                 'needs_app': True,
                  'needs_login': False,
                  'max_ttl': None }
     else:
@@ -83,20 +104,24 @@ class PermSecurity(object):
 
     __slots__ = ( 'description',
                   'needs_site',
+                  'needs_app',
                   'needs_persona',
                   'needs_login',
                   'max_ttl',
                   'dynamic',
-                  'index', )
+                  'index',
+                  'superuser_only', )
 
     def __init__(self,
                  needs_site = False,
                  needs_persona = False,
                  needs_login = False,
+                 needs_app = False,
                  max_ttl = None,
                  dynamic = False,
                  index = None,
-                 description = None):
+                 description = None,
+                 superuser_only = False):
         '''Initialize this permission security object.
 
         :param bool needs_site Whether or not this permission needs to be specific to a site
@@ -107,16 +132,18 @@ class PermSecurity(object):
         self.needs_site = needs_site
         self.needs_persona = needs_persona
         self.needs_login = needs_login
+        self.needs_app = needs_app
         self.max_ttl = max_ttl
         self.dynamic = dynamic
         self.index = index
         self.description = description
+        self.superuser_only = superuser_only
 
     def __str__(self):
         return repr(self)
 
     def __repr__(self):
-        return 'PermSecurity(needs_site={self.needs_site}, needs_persona={self.needs_persona}, needs_login={self.needs_login}, max_ttl={self.max_ttl}, dynamic={self.dynamic}, index={self.index}, description={self.description})'.format(self=self)
+        return 'PermSecurity(needs_site={self.needs_site}, needs_persona={self.needs_persona}, needs_app={self.needs_app}, needs_login={self.needs_login}, superuser_only={self.superuser_only}, max_ttl={self.max_ttl}, dynamic={self.dynamic}, index={self.index}, description={self.description})'.format(self=self)
 
     def __or__(self, other):
         max_ttl = self.max_ttl
@@ -127,18 +154,22 @@ class PermSecurity(object):
         return PermSecurity(needs_site=self.needs_site or other.needs_site,
                             needs_persona=self.needs_persona or other.needs_persona,
                             needs_login=self.needs_login or other.needs_login,
+                            needs_app=self.needs_app or other.needs_app,
                             max_ttl=max_ttl,
-                            dynamic=self.dynamic or other.dynamic)
+                            dynamic=self.dynamic or other.dynamic,
+                            superuser_only=self.superuser_only or other.superuser_only)
 
     @staticmethod
     def from_json(d, index=None):
         return PermSecurity(needs_site=d.get('needs_site'),
                             needs_persona=d.get('needs_persona'),
                             needs_login=d.get('needs_login'),
+                            needs_app=d.get('needs_app', False),
                             max_ttl=d.get('max_ttl'),
                             dynamic=d.get('dynamic', False),
                             description=d.get('description', None),
-                            index=index)
+                            index=index,
+                            superuser_only=d.get('superuser', False))
 
 class Permission(object):
     def __init__(self, url_or_perm, app_url=None, relative_to=None):
@@ -324,7 +355,7 @@ class TokenRequest(object):
     def is_transfer(self):
         return self.site is not None
 
-    def tokenize(self, api, persona_id=None, site_id=None):
+    def tokenize(self, api, persona_id=None, site_id=None, app_url=None):
         securities = []
         missing_apps = set()
 
@@ -357,6 +388,12 @@ class TokenRequest(object):
         elif required_security.needs_persona:
             persona_needed = persona_id
 
+        app_needed = None
+        if required_security.needs_app and app_url is None:
+            raise PermissionsError.app_instance_required()
+        elif required_security.needs_app:
+            app_needed = app_url
+
         required_expiry = None
         if required_security.max_ttl is not None:
             required_expiry = datetime.now() + timedelta(seconds=required_security.max_ttl)
@@ -366,7 +403,7 @@ class TokenRequest(object):
             new_expiry = required_expiry
 
         return Token(persona_id=persona_needed, site_id=site_needed,
-                     login_required=required_security.needs_login,
+                     app_url=app_needed, login_required=required_security.needs_login,
                      expires=new_expiry,
                      permissions=self.permissions)
 
@@ -387,15 +424,18 @@ class VerificationResult(object):
         return len(self.denied) == 0
 
 class Token(object):
-    def __init__(self, persona_id=None, site_id=None, login_required=False,
+    def __init__(self, persona_id=None, site_id=None, app_url=None, login_required=False,
                  permissions=None, expires=None):
         if permissions is None:
             permissions = []
 
         self.persona = persona_id
         self.site = site_id
+        self.app_url = app_url
         self.login_required = bool(login_required)
         self.expires = expires
+
+        self.delegated = False
 
         self.permissions = set(self._make_permission(p) for p in permissions)
 
@@ -504,6 +544,7 @@ class Token(object):
         denied = []
 
         persona_id = container_info.get('persona_id')
+        persona = api.get_persona_info(persona_id)
 
         tokens = TokenSet(api, container_info.get('tokens', []))
         # Collect all transferrable permissions from tokens
@@ -518,7 +559,10 @@ class Token(object):
                     else:
                         denied.append(p)
                 else:
-                    accepted.append(p)
+                    if p.perm_security(api, persona_id).superuser_only and not persona['superuser']:
+                        denied.append(p)
+                    else:
+                        accepted.append(p)
         else:
             for app, perms in self.grouped_permissions().items():
                 res = self._verify_transfer(transferrable, app, perms, api, persona_id=persona_id)
@@ -534,6 +578,8 @@ class Token(object):
                 'login_required': self.login_required }
         if self.persona is not None:
             ret['persona'] = self.persona
+        if self.app_url is not None:
+            ret['app_url'] = self.app_url
         if self.site is not None:
             ret['site'] = self.site
 
@@ -552,6 +598,8 @@ class Token(object):
             kwargs['site_id'] = d['site']
         if 'expiration' in d:
             kwargs['expires'] = datetime.strptime(d['expiration'], "%Y-%m-%dT%H:%M:%S.%f")
+        if 'app_url' in d:
+            kwargs['app_url'] = d['app_url']
         kwargs['login_required'] = d.get('login_required', False)
         return Token(**kwargs)
 
@@ -559,7 +607,34 @@ class Token(object):
         MIN_SECRET_LENGTH = 128
         return hexlify(os.urandom(MIN_SECRET_LENGTH)).decode('ascii')
 
+    @staticmethod
+    def from_delegated(delegated):
+        if not verify_hex_digest(delegated):
+            print('from_delegated: invalid hex digest', delegated)
+            return None
+
+        try:
+            with open(os.path.join(INTRUSTD_DELEGATED_TOKENS_DIR, delegated), 'rt') as f:
+                return Token.from_dict(json.load(f))
+        except IOError:
+            return None
+
+    def delegate(self):
+        if not self.delegated:
+            self.delegated = True
+            latest_expires = datetime.now() + MAX_DELEGATION_TIME
+            if self.expires is not None:
+                self.expires = min(self.expires, latest_expires)
+            else:
+                self.expires = latest_expires
+
+        os.makedirs(INTRUSTD_DELEGATED_TOKENS_DIR, exist_ok=True)
+        return self._save(INTRUSTD_DELEGATED_TOKENS_DIR)
+
     def save(self, api):
+        return self._save(api.tokens_dir)
+
+    def _save(self, directory):
         '''Saves this permission by writing it to a temporary file while
         calculating the sha256sum.
 
@@ -568,7 +643,7 @@ class Token(object):
 
         This becomes the token identifier.
         '''
-        with NamedTemporaryFile(mode='wb', dir=api.tokens_dir) as fl:
+        with NamedTemporaryFile(mode='wb', dir=directory) as fl:
 
             json_data = self.to_dict()
             json_data['secret'] = self._mint_secret()
@@ -579,7 +654,7 @@ class Token(object):
             sfl = Signature(data)
             token = sfl.hex_digest
 
-            token_filename = os.path.join(api.tokens_dir, sfl.hex_digest)
+            token_filename = os.path.join(directory, sfl.hex_digest)
 
             try:
                 os.link(fl.name, token_filename)
@@ -589,7 +664,7 @@ class Token(object):
             return token
 
     def describe(self, api, persona_id):
-        r = TokenDescription()
+        r = TokenDescription(self.permissions)
 
         grouped = self.grouped_permissions()
         for app, perms in grouped.items():
@@ -691,8 +766,9 @@ class TokenDescriptionSection(object):
 class TokenDescription(object):
     '''Description of a set of permissions
     '''
-    def __init__(self):
+    def __init__(self, perms):
         self.apps = OrderedDict()
+        self.perms = perms
 
     def get_section(self, app_manifest):
         if app_manifest.domain not in self.apps:
@@ -701,7 +777,8 @@ class TokenDescription(object):
         return self.apps[app_manifest.domain]
 
     def to_json(self):
-        return { 'sections': [section.to_json() for section in self.apps.values()] }
+        return { 'sections': [section.to_json() for section in self.apps.values()],
+                 'perms': [p.canonical for p in self.perms] }
 
 def has_install_permission(perms):
     return Permission(INSTALL_APP_PERMISSION, ADMIN_APP_URL) in perms or \

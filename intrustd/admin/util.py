@@ -6,6 +6,7 @@ from OpenSSL.crypto import sign
 from binascii import hexlify, unhexlify
 
 import hashlib
+import re
 
 class Signature(object):
     def __init__(self, data, private_key=None, digest='sha256'):
@@ -34,3 +35,7 @@ def no_cache(fn):
 
     no_cache_wrapped.__name__ = fn.__name__
     return no_cache_wrapped
+
+hex_digest_re = re.compile('[0-9a-fA-F]+')
+def verify_hex_digest(dig):
+    return hex_digest_re.match(dig) is not None

@@ -80,6 +80,10 @@ class PermissionsError(Exception):
     def persona_required():
         return PermissionsError("A persona is required for this permissions set")
 
+    @staticmethod
+    def app_instance_required():
+        return PermissionsError("An app instance is required for this permissions set")
+
 @app.errorhandler(PermissionsError)
 def perm_error(error):
     response = jsonify({ "message": error.reason })

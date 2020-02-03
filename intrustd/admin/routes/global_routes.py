@@ -1,5 +1,7 @@
 from flask import request, jsonify, abort
 
+from OpenSSL import crypto
+
 from ..api import local_api, require_superuser
 from ..app import app
 from ..permission import Permission, TokenSet, \
@@ -14,3 +16,13 @@ def container_info(ip):
             return jsonify(ip_info)
         else:
             abort(401)
+
+@app.route('/appliance/identity')
+def appliance_identity():
+    with local_api() as api:
+        pubkey_pem = crypto.dump_publickey(crypto.FILETYPE_PEM, api.private_key)
+
+        data = { 'identity': pubkey_pem.decode('ascii'),
+                 'name': api.appliance_name }
+
+        return jsonify(data)

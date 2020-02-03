@@ -863,6 +863,11 @@ class LocalApi(object):
         return tokens_dir
 
     @property
+    def appliance_name(self):
+        with open(os.path.join(self.appliance_dir, 'name'), 'rt') as name:
+            return name.read()
+
+    @property
     def private_key_path(self):
         return os.path.join(self.appliance_dir, 'key.pem')
 
