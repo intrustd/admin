@@ -2,6 +2,8 @@
 let python = pkgs.python3;
 
    redis-py = python.pkgs.callPackage ./pkgs/redis-py {};
+   kombu = python.pkgs.callPackage ./pkgs/kombu {};
+   our-celery = pkgs.celery.override { kombu = our-kombu; };
 
     admin-app = python.pkgs.buildPythonPackage {
       pname = "intrustd-admin";
@@ -11,7 +13,9 @@ let python = pkgs.python3;
 
       doCheck = false;
 
-      propagatedBuildInputs = with python.pkgs; [ flask pyopenssl itsdangerous jinja2 click werkzeug markupsafe pyudev celery redis-py pillow sqlalchemy ];
+      propagatedBuildInputs = with python.pkgs;
+        [ flask pyopenssl itsdangerous jinja2 click werkzeug
+          markupsafe pyudev our-celery redis-py pillow sqlalchemy ];
 
       meta = {
         homepage = "https://intrustd.com";
