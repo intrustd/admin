@@ -2,8 +2,9 @@
 let python = pkgs.python3;
 
    redis-py = python.pkgs.callPackage ./pkgs/redis-py {};
-   kombu = python.pkgs.callPackage ./pkgs/kombu {};
-   our-celery = pkgs.celery.override { kombu = our-kombu; };
+   our-kombu = python.pkgs.callPackage ./pkgs/kombu { Pyro4 = our-pyro4; };
+   our-pyro4 = python.pkgs.callPackage ./pkgs/pyro4 {};
+   our-celery = python.pkgs.celery.override { kombu = our-kombu; };
 
     admin-app = python.pkgs.buildPythonPackage {
       pname = "intrustd-admin";
