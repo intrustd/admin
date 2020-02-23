@@ -220,13 +220,13 @@ let
         sha1 = "73b5eeca3fab653e3d3f9422b341ad42205dc965";
       };
     };
-    "ajv-6.11.0" = {
+    "ajv-6.12.0" = {
       name = "ajv";
       packageName = "ajv";
-      version = "6.11.0";
+      version = "6.12.0";
       src = fetchurl {
-        url = "https://registry.npmjs.org/ajv/-/ajv-6.11.0.tgz";
-        sha512 = "nCprB/0syFYy9fVYU1ox1l2KN8S9I+tziH8D4zdZuLT3N6RMlGSGt5FSTpAiHB/Whv8Qs1cWHma1aMKZyaHRKA==";
+        url = "https://registry.npmjs.org/ajv/-/ajv-6.12.0.tgz";
+        sha512 = "D6gFiFA0RRLyUbvijN74DWAjXSFxWKaWP7mldxkVhyhAV3+SWA9HEJPHQ2c9soIeTFJqcSdFDGFgdqs1iUU2Hw==";
       };
     };
     "ajv-errors-1.0.1" = {
@@ -2056,13 +2056,13 @@ let
         sha1 = "3a83a904e54353287874c564b7549386849a98c9";
       };
     };
-    "electron-to-chromium-1.3.355" = {
+    "electron-to-chromium-1.3.359" = {
       name = "electron-to-chromium";
       packageName = "electron-to-chromium";
-      version = "1.3.355";
+      version = "1.3.359";
       src = fetchurl {
-        url = "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.3.355.tgz";
-        sha512 = "zKO/wS+2ChI/jz9WAo647xSW8t2RmgRLFdbUb/77cORkUTargO+SCj4ctTHjBn2VeNFrsLgDT7IuDVrd3F8mLQ==";
+        url = "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.3.359.tgz";
+        sha512 = "ewZp4BQftbLclBwmFYoTrlyiLMXQTiYeqh1hn24sWao9bGhUHzQtpytymN8JsenWlQ9SbBWynTPvfghb0Ipn1Q==";
       };
     };
     "elliptic-6.5.2" = {
@@ -3142,8 +3142,8 @@ let
       version = "1.0.0";
       src = fetchgit {
         url = "git://github.com/intrustd/js";
-        rev = "a1fcef6e9e19579fcdbdd0644f29c24fc6c1cdb1";
-        sha256 = "11syrrgba8534vdnnxyapkh7zk554s8zpzipiasgnmy8wn0akqj6";
+        rev = "4db378b9fc4512f4e5ff06b00ee4c42e1b55b620";
+        sha256 = "94179e7fce9e68f73e0fd9c123b48f9f24631b95369efe9b0c33a454c8d1fc35";
       };
     };
     "invariant-2.2.4" = {
@@ -6125,13 +6125,13 @@ let
         sha512 = "m6s2OdQe5wgpFMC+pAJ+q9djG82O2jcHPOI6RNg1yy9rCYR+WD6Nbpl32fDpfC56nirdRy+opFa/Vk7HYhqaew==";
       };
     };
-    "tslib-1.10.0" = {
+    "tslib-1.11.0" = {
       name = "tslib";
       packageName = "tslib";
-      version = "1.10.0";
+      version = "1.11.0";
       src = fetchurl {
-        url = "https://registry.npmjs.org/tslib/-/tslib-1.10.0.tgz";
-        sha512 = "qOebF53frne81cf0S9B41ByenJ3/IuH8yJKngAX35CmiZySA0khhkovshKK+jGCaMnVomla7gVlIcc3EvKPbTQ==";
+        url = "https://registry.npmjs.org/tslib/-/tslib-1.11.0.tgz";
+        sha512 = "BmndXUtiTn/VDDrJzQE7Mm22Ix3PxgLltW9bSNLoeCY31gnG2OPx0QqJnuc9oMIKioYrz487i6K9o4Pdn0j+Kg==";
       };
     };
     "tty-browserify-0.0.0" = {
@@ -6925,7 +6925,7 @@ let
         ];
       })
       sources."ecc-jsbn-0.1.2"
-      sources."electron-to-chromium-1.3.355"
+      sources."electron-to-chromium-1.3.359"
       sources."elliptic-6.5.2"
       sources."emoji-regex-7.0.3"
       sources."emojis-list-3.0.0"
@@ -6995,7 +6995,7 @@ let
       sources."figgy-pudding-3.5.1"
       (sources."file-loader-2.0.0" // {
         dependencies = [
-          sources."ajv-6.11.0"
+          sources."ajv-6.12.0"
           sources."fast-deep-equal-3.1.1"
           sources."json-schema-traverse-0.4.1"
           sources."schema-utils-1.0.0"
@@ -7079,7 +7079,7 @@ let
       sources."har-schema-2.0.0"
       (sources."har-validator-5.1.3" // {
         dependencies = [
-          sources."ajv-6.11.0"
+          sources."ajv-6.12.0"
           sources."fast-deep-equal-3.1.1"
           sources."json-schema-traverse-0.4.1"
         ];
@@ -7253,7 +7253,7 @@ let
       sources."mimic-fn-2.1.0"
       (sources."mini-css-extract-plugin-0.4.5" // {
         dependencies = [
-          sources."ajv-6.11.0"
+          sources."ajv-6.12.0"
           sources."fast-deep-equal-3.1.1"
           sources."json-schema-traverse-0.4.1"
           sources."schema-utils-1.0.0"
@@ -7606,7 +7606,7 @@ let
       })
       (sources."terser-webpack-plugin-1.4.3" // {
         dependencies = [
-          sources."ajv-6.11.0"
+          sources."ajv-6.12.0"
           sources."fast-deep-equal-3.1.1"
           sources."find-cache-dir-2.1.0"
           sources."find-up-3.0.0"
@@ -7646,7 +7646,7 @@ let
       sources."trim-newlines-1.0.0"
       sources."trim-right-1.0.1"
       sources."true-case-path-1.0.3"
-      sources."tslib-1.10.0"
+      sources."tslib-1.11.0"
       sources."tty-browserify-0.0.0"
       sources."tunnel-agent-0.6.0"
       sources."tweetnacl-0.14.5"
@@ -7702,7 +7702,7 @@ let
       sources."web-streams-polyfill-1.3.2"
       (sources."webpack-4.41.6" // {
         dependencies = [
-          sources."ajv-6.11.0"
+          sources."ajv-6.12.0"
           sources."fast-deep-equal-3.1.1"
           sources."json-schema-traverse-0.4.1"
           sources."schema-utils-1.0.0"
