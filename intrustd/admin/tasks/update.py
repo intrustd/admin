@@ -104,11 +104,7 @@ def do_system_update(self, download_only=False):
                               meta={ 'message': 'Starting update',
                                      'total': 0, 'complete': 0 })
 
-            log_file_dir = os.environ.get('INTRUSTD_UPDATE_LOG_DIR', "./logs")
-            update_logfile_name = os.path.join(log_file_dir, datetime.datetime.now().isoformat('T'))
-            os.makedirs(log_file_dir, exist_ok=True)
-
-            for msg, total, complete in start_system_update(update_logfile_name, download_only=download_only):
+            for msg, total, complete in start_system_update(download_only=download_only):
                 self.update_state(state='STARTED',
                                   meta = { 'message': msg,
                                            'total': total,

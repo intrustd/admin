@@ -1416,11 +1416,10 @@ def get_current_system_hash():
         else:
             return what.strip()
 
-def start_system_update(logfile, download_only=False):
+def start_system_update(download_only=False):
     with system_socket() as s:
         s.send(b'update\n')
-        s.send(json.dumps({ 'log': logfile,
-                            'download_only': download_only }).encode('ascii'))
+        s.send(json.dumps({ 'download_only': download_only }).encode('ascii'))
         s.send(b'\n')
 
         with s.makefile() as f:
